@@ -1,0 +1,109 @@
+
+.sidebar {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  background-color: #1a202c;
+  color: #e2e8f0;
+  height: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+  padding: 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: row !important;
+  gap: 1rem;
+  margin-top: 0;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.sidebar-nav-item {
+  display: inline-flex !important;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease-in-out;
+  color: #a0aec0;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  float: left;
+  margin-right: 1rem;
+}
+
+.sidebar-nav-item.active {
+  background: linear-gradient(135deg, var(--emerald-accent-primary), var(--emerald-accent-secondary));
+  color: var(--emerald-bg-primary);
+  box-shadow: 0 0 15px var(--emerald-glow);
+  border-color: var(--emerald-accent-primary);
+  text-shadow: none;
+}
+
+.sidebar-nav-item:hover {
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.2), rgba(101, 163, 13, 0.3));
+  color: var(--emerald-accent-secondary);
+  box-shadow: 0 0 10px var(--emerald-shadow);
+  border-color: var(--emerald-accent-secondary);
+}
+
+.sidebar-nav-item-icon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+.sidebar-nav-item-icon.active {
+  color: #ffffff;
+}
+
+/* Grid layout for sidebar navigation */
+.sidebar-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: 0.5rem;
+  margin-top: 0;
+  width: 100%;
+  padding: 0.5rem;
+}
+
+.sidebar-nav-grid .sidebar-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  color: #a0aec0;
+  font-size: 0.75rem;
+  text-align: center;
+  min-height: 3rem;
+  white-space: normal;
+}
+
+.sidebar-nav-grid .sidebar-nav-item-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-nav-grid .sidebar-nav-item span {
+  font-size: 0.7rem;
+  line-height: 1;
+}

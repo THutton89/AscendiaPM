@@ -1,0 +1,38 @@
+.summary-widgets-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-widget {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.widget-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 1rem;
+  color: #4f46e5;
+}
+
+.widget-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.widget-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}

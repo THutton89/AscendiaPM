@@ -1,0 +1,88 @@
+.project-list-container {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-top: 2rem;
+}
+
+.project-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.project-filter-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.project-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.project-list-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background-color: #f9fafb;
+  cursor: pointer;
+  user-select: none;
+}
+
+.project-list-table th:hover {
+  background-color: #f3f4f6;
+}
+
+.project-list-table td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.completed {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.on_hold {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.cancelled {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.completion-bar-container {
+  display: flex;
+  align-items: center;
+}
+
+.completion-bar {
+  height: 8px;
+  background-color: #4f46e5;
+  border-radius: 4px;
+  margin-right: 0.5rem;
+}
+
+.completion-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
