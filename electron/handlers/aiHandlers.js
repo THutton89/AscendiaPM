@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { getDatabase, saveDatabase } = require('../database');
 
+// Load environment variables
+const INFERENCE_SERVER_URL = process.env.INFERENCE_SERVER_URL || 'http://localhost:5002';
+const INFERENCE_SERVER_API_KEY = process.env.INFERENCE_SERVER_API_KEY;
+
 async function handleGetInferenceServerConfig() {
   const db = await getDatabase();
   const result = db.exec('SELECT base_url, model FROM lmstudio_config LIMIT 1');
@@ -35,7 +39,9 @@ async function handleSaveInferenceServerConfig(config) {
 
 async function handleTestInferenceServerConnection() {
   try {
-    const response = await axios.get(`http://localhost:5002/api/models`, {
+    const headers = INFERENCE_SERVER_API_KEY ? { 'x-api-key': INFERENCE_SERVER_API_KEY } : {};
+    const response = await axios.get(`${INFERENCE_SERVER_URL}/api/models`, {
+      headers,
       timeout: 5000
     });
     return { success: response.status === 200 };
@@ -47,13 +53,14 @@ async function handleTestInferenceServerConnection() {
 async function handleGetInferenceServerSummary(data) {
   const { prompt, model } = data;
   try {
-    const response = await axios.post('http://localhost:5002/api/inference', {
+    const headers = INFERENCE_SERVER_API_KEY ? { 'x-api-key': INFERENCE_SERVER_API_KEY } : {};
+    const response = await axios.post(`${INFERENCE_SERVER_URL}/api/inference`, {
       model_path: model || 'Manojb/Qwen3-4B-toolcalling-gguf-codex',
       prompt: prompt,
       agent_type: 'customer-service',
       max_tokens: 500,
       temperature: 0.7
-    });
+    }, { headers });
 
     if (response.data.success) {
       return response.data.response;
@@ -68,7 +75,8 @@ async function handleGetInferenceServerSummary(data) {
 
 async function handleGetAvailableModels() {
   try {
-    const response = await axios.get('http://localhost:5002/api/models');
+    const headers = INFERENCE_SERVER_API_KEY ? { 'x-api-key': INFERENCE_SERVER_API_KEY } : {};
+    const response = await axios.get(`${INFERENCE_SERVER_URL}/api/models`, { headers });
     return response.data.loaded_models || [];
   } catch (err) {
     console.error('Failed to fetch models from inference server:', err.message);
@@ -177,13 +185,14 @@ async function handleDispatchAITask(taskType, input) {
         throw new Error(`Unsupported task type: ${taskType}`);
     }
 
-    const response = await axios.post('http://localhost:5002/api/inference', {
+    const headers = INFERENCE_SERVER_API_KEY ? { 'x-api-key': INFERENCE_SERVER_API_KEY } : {};
+    const response = await axios.post(`${INFERENCE_SERVER_URL}/api/inference`, {
       model_path: modelName,
       prompt: prompt,
       agent_type: agentType,
       max_tokens: 500,
       temperature: 0.7
-    });
+    }, { headers });
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'Inference failed');

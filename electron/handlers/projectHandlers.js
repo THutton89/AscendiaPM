@@ -3,20 +3,33 @@ const { getDatabase, saveDatabase } = require('../database');
 
 async function handleCreateProject(userId, projectData) {
   const db = await getDatabase();
-  const result = db.run(
-    `INSERT INTO projects (user_id, name, description, status, start_date, end_date)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
+  db.run(
+    `INSERT INTO projects (organization_id, user_id, name, description, status, start_date, end_date, color)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      organizationId,
       userId,
       projectData.name,
-      projectData.description,
+      projectData.description || null,
       projectData.status || 'active',
-      projectData.start_date,
-      projectData.end_date
+      projectData.start_date || null,
+      projectData.end_date || null,
+      projectData.color || '#2196F3'
     ]
   );
 
-  const newId = result.insertId;
+  // Get the last insert ID using sql.js method
+  const lastIdResult = db.exec('SELECT last_insert_rowid() as id');
+  const newId = lastIdResult[0].values[0][0];
+
   await saveDatabase();
 
   return { success: true, id: newId };
@@ -24,6 +37,14 @@ async function handleCreateProject(userId, projectData) {
 
 async function handleGetProjects(userId) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   let hasCreatedAt = false;
   try {
     db.exec('SELECT created_at FROM projects LIMIT 1');
@@ -33,10 +54,10 @@ async function handleGetProjects(userId) {
   }
 
   const query = hasCreatedAt
-    ? 'SELECT id, name, description, status, start_date, end_date, created_at FROM projects WHERE user_id = ?'
-    : 'SELECT id, name, description, status, start_date, end_date FROM projects WHERE user_id = ?';
+    ? 'SELECT id, name, description, status, start_date, end_date, created_at FROM projects WHERE organization_id = ?'
+    : 'SELECT id, name, description, status, start_date, end_date FROM projects WHERE organization_id = ?';
 
-  const result = db.exec(query, [userId]);
+  const result = db.exec(query, [organizationId]);
   const projects = [];
   if (result.length > 0) {
     const { columns, values } = result[0];
@@ -57,6 +78,14 @@ async function handleGetProjects(userId) {
 
 async function handleUpdateProject(userId, data) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   const { id, ...updates } = data;
   const fields = [];
   const values = [];
@@ -67,11 +96,11 @@ async function handleUpdateProject(userId, data) {
   }
 
   values.push(id);
-  values.push(userId);
+  values.push(organizationId);
 
   db.run(
-    `UPDATE projects SET ${fields.join(', ')}, updated_at = ? WHERE id = ? AND user_id = ?`,
-    [...values.slice(0, -2), new Date().toISOString(), id, userId]
+    `UPDATE projects SET ${fields.join(', ')}, updated_at = ? WHERE id = ? AND organization_id = ?`,
+    [...values.slice(0, -2), new Date().toISOString(), id, organizationId]
   );
   await saveDatabase();
   return { success: true };
@@ -79,7 +108,15 @@ async function handleUpdateProject(userId, data) {
 
 async function handleDeleteProject(userId, projectId) {
   const db = await getDatabase();
-  db.run('DELETE FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
+  db.run('DELETE FROM projects WHERE id = ? AND organization_id = ?', [projectId, organizationId]);
   await saveDatabase();
   return { success: true };
 }

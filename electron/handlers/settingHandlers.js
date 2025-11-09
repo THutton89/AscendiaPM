@@ -1,19 +1,30 @@
 // settingHandlers.js
 const { getDatabase, saveDatabase } = require('../database');
 
-async function handleGetSettings(category, userId) {
+async function handleGetSettings(userId, category, specificUserId) {
   const db = await getDatabase();
-  let query = "SELECT * FROM app_settings WHERE 1=1";
-  const params = [];
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+  if (!organizationId) {
+    throw new Error('User is not part of any organization');
+  }
+
+  let query = "SELECT * FROM app_settings WHERE organization_id = ?";
+  const params = [organizationId];
 
   if (category) {
     query += " AND category = ?";
     params.push(category);
   }
 
-  if (userId) {
+  if (specificUserId) {
     query += " AND user_id = ?";
-    params.push(userId);
+    params.push(specificUserId);
   }
 
   query += " ORDER BY category, key";
@@ -21,24 +32,32 @@ async function handleGetSettings(category, userId) {
   const result = db.exec(query, params);
   return result[0] ? result[0].values.map(row => ({
     id: row[0],
-    category: row[1],
-    key: row[2],
-    value: row[3],
-    user_id: row[4],
-    created_at: row[5],
-    updated_at: row[6]
+    category: row[2],
+    key: row[3],
+    value: JSON.parse(row[4]),
+    user_id: row[5],
+    created_at: row[6],
+    updated_at: row[7]
   })) : [];
 }
 
-async function handleSaveSetting(setting) {
+async function handleSaveSetting(userId, setting) {
   const db = await getDatabase();
   const now = new Date().toISOString();
 
-  db.run("INSERT INTO app_settings (category, key, value, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", [
+  // Get user's organization
+  let organizationId = null;
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (userResult[0] && userResult[0].values.length > 0) {
+    organizationId = userResult[0].values[0][0];
+  }
+
+  db.run("INSERT INTO app_settings (organization_id, category, key, value, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)", [
+    organizationId,
     setting.category,
     setting.key,
     JSON.stringify(setting.value),
-    setting.user_id || null,
+    userId,
     now,
     now
   ]);

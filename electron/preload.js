@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Auth related APIs
   signup: (data) => ipcRenderer.invoke('signup', data),
   login: (data) => ipcRenderer.invoke('login', data),
+  logout: (userId) => ipcRenderer.invoke('logout', userId),
   googleOAuthSignin: () => ipcRenderer.invoke('google-oauth-signin'),
   // User management APIs
   getUsers: () => ipcRenderer.invoke('get-users'),

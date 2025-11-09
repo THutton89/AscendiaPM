@@ -12,6 +12,7 @@ const { dbInitializationPromise, saveDatabase } = require('./database');
 const { startAPIServer, stopAPIServer } = require('./api/server');
 const { registerIpcHandlers } = require('./ipc/register');
 const { initGitRepo } = require('./services/gitService');
+const { startCallbackServer, stopCallbackServer } = require('./services/authService');
 
 // --- Global References ---
 let mainWindow;
@@ -72,12 +73,11 @@ async function createWindow() {
     ? 'http://localhost:5169' // Vite dev server
     : `file://${path.join(__dirname, '../index.html')}`; // Packaged app
   log.info('Loading URL:', appUrl);
-  
+
   mainWindow.loadURL(appUrl);
-  
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+
+  // Open dev tools in production to debug the white screen issue
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
@@ -114,6 +114,7 @@ function createTray() {
         app.isQuitting = true;
         saveDatabase();
         stopAPIServer();
+        stopCallbackServer();
         app.quit();
       }
     }
@@ -144,7 +145,10 @@ app.whenReady().then(async () => {
     // 3. Start the API server
     startAPIServer();
 
-    // 4. Create the main window
+    // 4. Start the OAuth callback server
+    startCallbackServer();
+
+    // 5. Create the main window
     createWindow();
 
   } catch (err) {

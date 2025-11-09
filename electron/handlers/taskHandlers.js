@@ -1,19 +1,31 @@
 // handlers/taskHandlers.js
 const { getDatabase, saveDatabase } = require('../database');
 
-async function handleCreateTask(task) {
+async function handleCreateTask(userId, task) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+  if (!organizationId) {
+    throw new Error('User is not part of any organization');
+  }
+
   db.run(
-    `INSERT INTO tasks (project_id, sprint_id, title, description, status, priority, due_date, estimated_hours, actual_hours)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (organization_id, project_id, sprint_id, title, description, status, priority, due_date, estimated_hours, actual_hours)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      task.project_id,
+      organizationId,
+      task.project_id || task.projectId,
       task.sprint_id || null,
       task.title,
       task.description || '',
       task.status || 'todo',
       task.priority || 'medium',
-      task.due_date,
+      task.due_date || null,
       task.estimated_hours || 0,
       task.actual_hours || 0
     ]

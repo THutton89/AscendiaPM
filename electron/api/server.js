@@ -16,11 +16,23 @@ async function authenticateRequest(req, res, next) {
   const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket?.remoteAddress || 'unknown';
 
   if (clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === '::ffff:127.0.0.1') {
+    // Allow local requests with default auth for testing
+    req.auth = {
+      apiKeyId: 0,
+      userId: 1, // Default test user
+      active: 1
+    };
     return next();
   }
   if (clientIP.startsWith('192.168.') ||
       clientIP.startsWith('10.') ||
       (clientIP.startsWith('172.') && parseInt(clientIP.split('.')[1]) >= 16 && parseInt(clientIP.split('.')[1]) <= 31)) {
+    // Allow local network requests with default auth for testing
+    req.auth = {
+      apiKeyId: 0,
+      userId: 1, // Default test user
+      active: 1
+    };
     return next();
   }
 

@@ -6,13 +6,14 @@ const { handleCreateProject, handleGetProjects, handleUpdateProject, handleDelet
 const { handleGetUsers } = require('../handlers/userHandlers');
 const { handleSignup, handleLogin, handleGoogleOAuthSignin, handleValidateEmail, handleCheckEmailExists } = require('../handlers/authHandlers');
 const { handleCreateTask, handleGetTasks, handleUpdateTask, handleDeleteTask } = require('../handlers/taskHandlers');
-const { handleDispatchAITask, handleGetLmStudioConfig, handleSaveLmStudioConfig, handleTestLmStudioConnection, handleGetLmStudioSummary, handleGetAvailableModels } = require('../handlers/aiHandlers');
+const { handleDispatchAITask, handleGetInferenceServerConfig, handleSaveInferenceServerConfig, handleTestInferenceServerConnection, handleGetInferenceServerSummary, handleGetAvailableModels } = require('../handlers/aiHandlers');
 const { handleCreateComment, handleGetComments, handleDeleteComment } = require('../handlers/commentHandlers');
 const { handleGitStore, handleGitRead, handleCreateBug, handleGetBug, handleUpdateBug, handleListBugs } = require('../handlers/bugHandlers');
 const { handleGetSettings, handleSaveSetting, handleUpdateSetting, handleDeleteSetting } = require('../handlers/settingHandlers');
 
 const { handleCreateApiKey, handleGetApiKeys, handleDeleteApiKey } = require('../handlers/apikeyHandlers');
 const { handleGetAppointments, handleCreateAppointment, handleUpdateAppointment, handleDeleteAppointment } = require('../handlers/schedulingHandlers');
+const { handleCreateOrganization, handleGetOrganization, handleUpdateOrganization, handleGetOrganizationMembers, handleInviteUserToOrganization, handleRemoveUserFromOrganization, handleUpdateUserRole } = require('../handlers/organizationHandlers');
 
 // Wrapper to handle async/await errors in Express
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -82,7 +83,7 @@ function registerApiRoutes(apiApp, auth) {
 
   // Tasks
   apiApp.post('/api/tasks', auth, wrap(async (req, res) => {
-    const result = await handleCreateTask(req.body);
+    const result = await handleCreateTask(req.auth.userId, req.body);
     res.json(result);
   }));
   apiApp.get('/api/tasks', auth, wrap(async (req, res) => {
@@ -104,34 +105,34 @@ function registerApiRoutes(apiApp, auth) {
     const result = await handleDispatchAITask(taskType, input);
     res.json(result);
   }));
-  apiApp.get('/api/ai/lmstudio/config', auth, wrap(async (req, res) => {
-    const result = await handleGetLmStudioConfig();
+  apiApp.get('/api/ai/inference/config', auth, wrap(async (req, res) => {
+    const result = await handleGetInferenceServerConfig();
     res.json(result);
   }));
-  apiApp.post('/api/ai/lmstudio/config', auth, wrap(async (req, res) => {
-    const result = await handleSaveLmStudioConfig(req.body);
+  apiApp.post('/api/ai/inference/config', auth, wrap(async (req, res) => {
+    const result = await handleSaveInferenceServerConfig(req.body);
     res.json(result);
   }));
-  apiApp.post('/api/ai/lmstudio/test-connection', auth, wrap(async (req, res) => {
-    const result = await handleTestLmStudioConnection();
+  apiApp.post('/api/ai/inference/test-connection', auth, wrap(async (req, res) => {
+    const result = await handleTestInferenceServerConnection();
     res.json(result);
   }));
-  apiApp.post('/api/ai/lmstudio/summary', auth, wrap(async (req, res) => {
-    const result = await handleGetLmStudioSummary(req.body);
+  apiApp.post('/api/ai/inference/summary', auth, wrap(async (req, res) => {
+    const result = await handleGetInferenceServerSummary(req.body);
     res.json(result);
   }));
-  apiApp.get('/api/ai/lmstudio/models', auth, wrap(async (req, res) => {
+  apiApp.get('/api/ai/inference/models', auth, wrap(async (req, res) => {
     const result = await handleGetAvailableModels();
     res.json(result);
   }));
 
   // Comments
   apiApp.post('/api/comments', auth, wrap(async (req, res) => {
-    const result = await handleCreateComment(req.body);
+    const result = await handleCreateComment(req.auth.userId, req.body);
     res.json(result);
   }));
   apiApp.get('/api/comments/:taskId', auth, wrap(async (req, res) => {
-    const result = await handleGetComments(req.params.taskId);
+    const result = await handleGetComments(req.auth.userId, req.params.taskId);
     res.json(result);
   }));
   apiApp.delete('/api/comments/:id', auth, wrap(async (req, res) => {
@@ -169,11 +170,11 @@ function registerApiRoutes(apiApp, auth) {
   // Settings
   apiApp.get('/api/settings', auth, wrap(async (req, res) => {
     const { category, userId } = req.query;
-    const result = await handleGetSettings(category, userId);
+    const result = await handleGetSettings(req.auth.userId, category, userId);
     res.json(result);
   }));
   apiApp.post('/api/settings', auth, wrap(async (req, res) => {
-    const result = await handleSaveSetting(req.body);
+    const result = await handleSaveSetting(req.auth.userId, req.body);
     res.json(result);
   }));
   apiApp.put('/api/settings/:id', auth, wrap(async (req, res) => {
@@ -202,19 +203,49 @@ function registerApiRoutes(apiApp, auth) {
   // Appointments
   apiApp.get('/api/appointments', auth, wrap(async (req, res) => {
     const { date } = req.query;
-    const result = await handleGetAppointments(date);
+    const result = await handleGetAppointments(req.auth.userId, date);
     res.json(result);
   }));
   apiApp.post('/api/appointments', auth, wrap(async (req, res) => {
-    const result = await handleCreateAppointment({ ...req.body, assignedUserId: req.auth.userId });
+    const result = await handleCreateAppointment(req.auth.userId, req.body);
     res.json(result);
   }));
   apiApp.put('/api/appointments/:id', auth, wrap(async (req, res) => {
-    const result = await handleUpdateAppointment(req.params.id, req.body);
+    const result = await handleUpdateAppointment(req.auth.userId, req.params.id, req.body);
     res.json(result);
   }));
   apiApp.delete('/api/appointments/:id', auth, wrap(async (req, res) => {
-    const result = await handleDeleteAppointment(req.params.id);
+    const result = await handleDeleteAppointment(req.auth.userId, req.params.id);
+    res.json(result);
+  }));
+
+  // Organizations
+  apiApp.post('/api/organizations', auth, wrap(async (req, res) => {
+    const result = await handleCreateOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.get('/api/organizations', auth, wrap(async (req, res) => {
+    const result = await handleGetOrganization(req.auth.userId);
+    res.json(result);
+  }));
+  apiApp.put('/api/organizations', auth, wrap(async (req, res) => {
+    const result = await handleUpdateOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.get('/api/organizations/members', auth, wrap(async (req, res) => {
+    const result = await handleGetOrganizationMembers(req.auth.userId);
+    res.json(result);
+  }));
+  apiApp.post('/api/organizations/invite', auth, wrap(async (req, res) => {
+    const result = await handleInviteUserToOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.delete('/api/organizations/members/:userId', auth, wrap(async (req, res) => {
+    const result = await handleRemoveUserFromOrganization(req.auth.userId, req.params.userId);
+    res.json(result);
+  }));
+  apiApp.put('/api/organizations/members/:userId/role', auth, wrap(async (req, res) => {
+    const result = await handleUpdateUserRole(req.auth.userId, { ...req.body, userId: req.params.userId });
     res.json(result);
   }));
 

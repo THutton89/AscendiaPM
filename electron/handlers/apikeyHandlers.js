@@ -6,7 +6,15 @@ async function handleCreateApiKey({ name, userId }) {
   const db = await getDatabase();
   const apiKey = crypto.randomBytes(32).toString('hex');
 
-  db.run("INSERT INTO api_keys (key, name, user_id) VALUES (?, ?, ?)", [
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
+  db.run("INSERT INTO api_keys (organization_id, key, name, user_id) VALUES (?, ?, ?, ?)", [
+    organizationId,
     apiKey,
     name,
     userId

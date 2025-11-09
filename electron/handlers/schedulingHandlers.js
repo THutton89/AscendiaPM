@@ -1,8 +1,16 @@
 // handlers/schedulingHandlers.js
 const { getDatabase, saveDatabase } = require('../database');
 
-async function handleGetAppointments(date) {
+async function handleGetAppointments(userId, date) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   try {
     const appointments = [];
     const query = date
@@ -10,13 +18,14 @@ async function handleGetAppointments(date) {
          FROM appointments a
          LEFT JOIN projects p ON a.project_id = p.id
          LEFT JOIN users u ON a.assigned_user_id = u.id
-         WHERE date(a.start_date) = ?`
+         WHERE a.organization_id = ? AND date(a.start_date) = ?`
       : `SELECT a.*, p.name as project_name, p.color as project_color, u.name as user_name
          FROM appointments a
          LEFT JOIN projects p ON a.project_id = p.id
-         LEFT JOIN users u ON a.assigned_user_id = u.id`;
+         LEFT JOIN users u ON a.assigned_user_id = u.id
+         WHERE a.organization_id = ?`;
 
-    const params = date ? [date] : [];
+    const params = date ? [organizationId, date] : [organizationId];
     const result = db.exec(query, params);
 
     if (result.length > 0) {
@@ -41,32 +50,52 @@ async function handleGetAppointments(date) {
   }
 }
 
-async function handleCreateAppointment(appointmentData) {
+async function handleCreateAppointment(userId, appointmentData) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   try {
-    const result = db.run(
-      `INSERT INTO appointments (title, start_date, end_date, assigned_user_id, project_id, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+    db.run(
+      `INSERT INTO appointments (organization_id, title, start_date, end_date, assigned_user_id, project_id, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
+        organizationId,
         appointmentData.title,
         appointmentData.startDate,
         appointmentData.endDate,
-        appointmentData.assignedUserId,
+        appointmentData.assignedUserId || userId,
         appointmentData.projectId || null,
         appointmentData.notes || ''
       ]
     );
 
+    const lastIdResult = db.exec('SELECT last_insert_rowid() as id');
+    const newId = lastIdResult[0].values[0][0];
+
     await saveDatabase();
-    return { success: true, id: result.insertId };
+    return { success: true, id: newId };
   } catch (error) {
     console.error('Error creating appointment:', error);
     return { success: false, error: error.message };
   }
 }
 
-async function handleUpdateAppointment(id, updates) {
+async function handleUpdateAppointment(userId, appointmentId, updates) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   try {
     const fields = [];
     const values = [];
@@ -79,10 +108,11 @@ async function handleUpdateAppointment(id, updates) {
       else fields.push(`${key} = ?`);
       values.push(value);
     }
-    values.push(id);
+    values.push(appointmentId);
+    values.push(organizationId);
 
     db.run(
-      `UPDATE appointments SET ${fields.join(', ')} WHERE id = ?`,
+      `UPDATE appointments SET ${fields.join(', ')} WHERE id = ? AND organization_id = ?`,
       values
     );
     await saveDatabase();
@@ -93,10 +123,18 @@ async function handleUpdateAppointment(id, updates) {
   }
 }
 
-async function handleDeleteAppointment(id) {
+async function handleDeleteAppointment(userId, appointmentId) {
   const db = await getDatabase();
+
+  // Get user's organization
+  const userResult = db.exec('SELECT organization_id FROM users WHERE id = ?', [userId]);
+  if (!userResult[0] || userResult[0].values.length === 0) {
+    throw new Error('User not found');
+  }
+  const organizationId = userResult[0].values[0][0];
+
   try {
-    db.run('DELETE FROM appointments WHERE id = ?', [id]);
+    db.run('DELETE FROM appointments WHERE id = ? AND organization_id = ?', [appointmentId, organizationId]);
     await saveDatabase();
     return { success: true };
   } catch (error) {
