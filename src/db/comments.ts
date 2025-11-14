@@ -1,4 +1,5 @@
 import { Comment } from '../types';
+import { api } from '../utils/api';
 
 export const createCommentsTable = (db: any) => {
   db.prepare(`
@@ -16,25 +17,28 @@ export const createCommentsTable = (db: any) => {
 
 export const commentsDb = {
   create: async (comment: Omit<Comment, 'id' | 'created_at'>) => {
-    const result = await window.electronAPI.dbQuery(`
-      INSERT INTO comments (task_id, user_id, content, mentions)
-      VALUES (@task_id, @user_id, @content, @mentions)
-      RETURNING *
-    `, {
-      ...comment,
-      mentions: JSON.stringify(comment.mentions || [])
+    const result = await api('db-query', {
+      query: `
+        INSERT INTO comments (task_id, user_id, content, mentions)
+        VALUES (?, ?, ?, ?)
+        RETURNING *
+      `,
+      params: [comment.task_id, comment.user_id, comment.content, JSON.stringify(comment.mentions || [])]
     });
     return result[0];
   },
 
   getByTask: async (taskId: number): Promise<Comment[]> => {
-    const result = await window.electronAPI.dbQuery(`
-      SELECT c.*, u.name as user_name 
-      FROM comments c
-      JOIN users u ON c.user_id = u.id
-      WHERE task_id = ?
-      ORDER BY created_at ASC
-    `, [taskId]);
+    const result = await api('db-query', {
+      query: `
+        SELECT c.*, u.name as user_name
+        FROM comments c
+        JOIN users u ON c.user_id = u.id
+        WHERE task_id = ?
+        ORDER BY created_at ASC
+      `,
+      params: [taskId]
+    });
     return result.map((c: any) => ({
       ...c,
       mentions: JSON.parse(c.mentions || '[]')
@@ -42,15 +46,21 @@ export const commentsDb = {
   },
 
   delete: async (id: number) => {
-    await window.electronAPI.dbQuery(`
-      DELETE FROM comments WHERE id = ?
-    `, [id]);
+    await api('db-query', {
+      query: `
+        DELETE FROM comments WHERE id = ?
+      `,
+      params: [id]
+    });
   },
 
   getMentionedUsers: async (commentId: number): Promise<number[]> => {
-    const result = await window.electronAPI.dbQuery(`
-      SELECT mentions FROM comments WHERE id = ?
-    `, [commentId]);
+    const result = await api('db-query', {
+      query: `
+        SELECT mentions FROM comments WHERE id = ?
+      `,
+      params: [commentId]
+    });
     return JSON.parse(result[0]?.mentions || '[]');
   }
 };

@@ -1,14 +1,16 @@
+import { api } from './api';
+
 class _LMStudioClient {
   async getSummary(prompt: string, model?: string): Promise<string> {
-    return window.electronAPI.getLmstudioSummary({ prompt, model });
+    return api('lmstudio-get-summary', { prompt, model });
   }
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
-    return window.electronAPI.testLmstudioConnection();
+    return api('lmstudio-test-connection');
   }
 
   async getAvailableModels(): Promise<string[]> {
-    return window.electronAPI.getAvailableModels();
+    return api('lmstudio-get-available-models');
   }
 }
 

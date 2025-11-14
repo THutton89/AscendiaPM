@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { tasksDb } from "../db/tasks";
+import { tasksApi } from "../api/tasks";
 import { Task } from "../types";
 import { format } from "date-fns";
 import { PlusIcon } from "lucide-react";
@@ -30,7 +30,7 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
   const { data: tasks, isLoading, isError } = useQuery({
     queryKey: ["tasks", projectId],
     queryFn: async () => {
-      const result = await tasksDb.getAll({ project_id: projectId });
+      const result = await tasksApi.getByProject(projectId);
       return result || [];
     },
     enabled: typeof projectId === 'number',
@@ -38,7 +38,7 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
 
   const createTaskMutation = useMutation({
     mutationFn: async (task: Omit<Task, 'id' | 'created_at'>) => {
-      const result = await tasksDb.create(task);
+      const result = await tasksApi.create(task);
       return result;
     },
     onSuccess: () => {
@@ -60,7 +60,7 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, task }: { id: number; task: Partial<Task> }) => {
-      const result = await tasksDb.update(id, task);
+      const result = await tasksApi.update(id, task);
       return result;
     },
     onSuccess: () => {
@@ -71,8 +71,7 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
-      const result = await tasksDb.delete(taskId);
-      return result;
+      await tasksApi.delete(taskId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });

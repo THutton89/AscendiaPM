@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import GitHubSignInButton from '../components/GitHubSignInButton';
 
 export function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,14 +12,46 @@ export function Login() {
   const [name, setName] = useState('');
   const [role, setRole] = useState('Collaborator');
   const [error, setError] = useState('');
-  const { login, googleSignIn, loading } = useAuth();
+  const { login, googleSignIn, githubSignIn, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const oauthProcessed = useRef(false);
+
+  // Handle OAuth callback
+  useEffect(() => {
+    // Prevent multiple executions
+    if (oauthProcessed.current) return;
+
+    const success = searchParams.get('success');
+    const userParam = searchParams.get('user');
+    const errorParam = searchParams.get('error');
+
+    if (errorParam) {
+      oauthProcessed.current = true;
+      setError(decodeURIComponent(errorParam));
+      // Clean up URL
+      navigate('/login', { replace: true });
+    } else if (success && userParam) {
+      oauthProcessed.current = true;
+      try {
+        const authData = JSON.parse(decodeURIComponent(userParam));
+        const { user, token } = authData;
+        login(user, token);
+        // Clean up URL and redirect
+        navigate('/', { replace: true });
+      } catch (err) {
+        setError('Failed to process authentication');
+        navigate('/login', { replace: true });
+      }
+    }
+  }, [searchParams, navigate]); // Removed login from dependencies
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const user = await api('login', { email, password });
-      login(user);
+      const response = await api('login', { email, password });
+      const { user, token } = response;
+      login(user, token);
       navigate('/');
     } catch (err) {
       setError('Invalid credentials');
@@ -28,8 +61,9 @@ export function Login() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const user = await api('signup', { name, email, password, role });
-      login(user);
+      const response = await api('signup', { name, email, password, role });
+      const { user, token } = response;
+      login(user, token);
       navigate('/');
     } catch (err) {
       setError('Could not create account');
@@ -46,6 +80,16 @@ export function Login() {
     }
   };
 
+  const handleGitHubSignIn = async () => {
+    try {
+      setError('');
+      await githubSignIn();
+      navigate('/');
+    } catch (err) {
+      setError('GitHub sign-in failed. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
@@ -54,10 +98,15 @@ export function Login() {
         </h2>
         {error && <p className="text-red-500 text-center">{error}</p>}
 
-        {/* Google Sign-in Button */}
-        <div className="mt-6">
+        {/* OAuth Sign-in Buttons */}
+        <div className="mt-6 space-y-3">
           <GoogleSignInButton
             onSignIn={handleGoogleSignIn}
+            onError={setError}
+            loading={loading}
+          />
+          <GitHubSignInButton
+            onSignIn={handleGitHubSignIn}
             onError={setError}
             loading={loading}
           />

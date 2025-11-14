@@ -1,4 +1,5 @@
 import { Project } from '../types/project';
+import { api } from '../utils/api';
 
 const mapApiProjectToProject = (apiProject: any): Project => {
   const project: Project = {
@@ -11,12 +12,12 @@ const mapApiProjectToProject = (apiProject: any): Project => {
     created_at: apiProject.created_at || new Date().toISOString(),
     completion: 0 // Default value, will be calculated client-side
   };
-  
+
   // Only set completion if it exists in the API response
   if ('completion' in apiProject && typeof apiProject.completion === 'number') {
     project.completion = apiProject.completion;
   }
-  
+
   return project;
 };
 
@@ -25,49 +26,44 @@ const getApiKey = () => 'test-api-key-123';
 
 export const projectsApi = {
   create: async (project: Omit<Project, 'id' | 'created_at' | 'completion'>) => {
-    const result = await window.electronAPI.createProject({
+    const result = await api('create-project', {
       name: project.name,
       description: project.description,
       status: project.status,
       start_date: project.start_date,
-      end_date: project.end_date
-    }, { apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
-    return mapApiProjectToProject({ ...project, id: result.id! });
+      end_date: project.end_date,
+      apiKey: getApiKey()
+    });
+    return mapApiProjectToProject(result);
   },
 
   getAll: async (): Promise<Project[]> => {
-    const result = await window.electronAPI.getProjects({ apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
-    return (result.projects || []).map(mapApiProjectToProject);
+    const result = await api('get-projects', { apiKey: getApiKey() });
+    return result.map(mapApiProjectToProject);
   },
 
   getById: async (id: number): Promise<Project> => {
-    const result = await window.electronAPI.getProjects({ apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
-    const project = result.projects?.find(p => p.id === id);
+    const result = await api('get-projects', { apiKey: getApiKey() });
+    const project = result.find((p: any) => p.id === id);
     if (!project) throw new Error('Project not found');
     return mapApiProjectToProject(project);
   },
 
   update: async (id: number, updates: Partial<Project>): Promise<Project> => {
-    const result = await window.electronAPI.updateProject({
+    const result = await api('update-project', {
       id,
-      updates
-    }, { apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
-    const project = await projectsApi.getById(id);
-    return project;
+      ...updates,
+      apiKey: getApiKey()
+    });
+    return mapApiProjectToProject(result);
   },
 
   delete: async (id: number): Promise<void> => {
-    const result = await window.electronAPI.deleteProject(id, { apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
+    await api('delete-project', { id, apiKey: getApiKey() });
   },
 
   getStats: async (id: number) => {
-    const result = await window.electronAPI.getProjectStats(id, { apiKey: getApiKey() });
-    if (!result.success) throw new Error(result.error);
-    return result.stats;
+    const result = await api('get-project-stats', { id, apiKey: getApiKey() });
+    return result;
   }
 };

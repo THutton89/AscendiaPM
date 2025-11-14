@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tasksDb } from '../db/tasks';
-import { sprintsDb } from '../db/sprints';
+import { tasksApi } from '../api/tasks';
 import { Task } from '../types';
 import SprintSelector from './SprintSelector';
 import { Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
@@ -21,10 +20,9 @@ const ScrumBoard: React.FC<ScrumBoardProps> = React.memo(({ projectId }) => {
     queryKey: ['tasks', projectId, currentSprintId],
     queryFn: async () => {
       try {
-        const result = await tasksDb.getAll({
-          project_id: projectId,
-          sprint_id: currentSprintId
-        });
+        // For now, just get all tasks for the project
+        // Sprint filtering will be implemented when sprint APIs are available
+        const result = await tasksApi.getByProject(projectId);
         return result || [];
       } catch (error) {
         console.error('Error fetching tasks:', error);
@@ -33,17 +31,13 @@ const ScrumBoard: React.FC<ScrumBoardProps> = React.memo(({ projectId }) => {
     }
   });
 
+  // TODO: Implement sprint API
   // Get all sprints for the project
   const { data: sprints, error: sprintsError } = useQuery({
     queryKey: ['sprints', projectId],
     queryFn: async () => {
-      try {
-        const result = await sprintsDb.getAll(projectId);
-        return result || [];
-      } catch (error) {
-        console.error('Error fetching sprints:', error);
-        throw error;
-      }
+      // Temporarily return empty array until sprint API is implemented
+      return [];
     }
   });
 
@@ -58,21 +52,23 @@ const ScrumBoard: React.FC<ScrumBoardProps> = React.memo(({ projectId }) => {
     { id: 'done', title: 'Done' }
   ], []);
 
+  // TODO: Implement sprint API
   // Set default to active sprint if none selected
   useEffect(() => {
     if (!currentSprintId) {
-      sprintsDb.getActive(projectId).then(sprint => {
-        if (sprint) setCurrentSprintId(sprint.id);
-      }).catch(error => {
-        console.error('Error fetching active sprint:', error);
-      });
+      // Temporarily disabled until sprint API is implemented
+      // sprintsDb.getActive(projectId).then(sprint => {
+      //   if (sprint) setCurrentSprintId(sprint.id);
+      // }).catch(error => {
+      //   console.error('Error fetching active sprint:', error);
+      // });
     }
   }, [projectId, currentSprintId]);
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, task }: { id: number; task: Partial<Task> }) => {
       try {
-        const result = await tasksDb.update(id, task);
+        const result = await tasksApi.update(id, task);
         return result;
       } catch (error) {
         console.error('Error updating task:', error);

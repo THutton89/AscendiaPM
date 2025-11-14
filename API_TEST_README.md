@@ -6,7 +6,7 @@ This script provides comprehensive testing for all API endpoints in the Ascendia
 
 1. **Start the application** in development mode:
    ```bash
-   npm run electron:dev
+   npm run start
    ```
 
 2. **Ensure the API server is running** on `http://localhost:3069`
@@ -17,7 +17,7 @@ This script provides comprehensive testing for all API endpoints in the Ascendia
 
 1. **Start the application** in development mode:
    ```bash
-   npm run electron:dev
+   npm run start
    ```
 
 2. **In a separate terminal**, run the API tests:
@@ -122,7 +122,7 @@ The script provides:
 1. **"API server is not running"**:
    ```bash
    # Start the app first
-   npm run electron:dev
+   npm run start
    # Then run tests in another terminal
    npm run test:api
    ```
@@ -164,7 +164,7 @@ This script can be integrated into your CI/CD pipeline:
 # Example GitHub Actions step
 - name: Run API Tests
   run: |
-    npm run electron:dev &
+    npm run start &
     sleep 10
     npm run test:api
 ```

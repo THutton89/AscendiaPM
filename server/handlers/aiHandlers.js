@@ -104,22 +104,22 @@ async function handleDispatchAITask(taskType, input) {
       {
         agentType: 'Analyst',
         tasks: ['risk-assessment', 'resource-allocation', 'commit-analysis', 'read-code'],
-        outputDir: path.join(__dirname, '../../ai_outputs/analyst_reports')
+        outputDir: path.join(__dirname, '../ai_outputs/analyst_reports')
       },
       {
         agentType: 'Documentation',
         tasks: ['release-notes', 'meeting-summaries'],
-        outputDir: path.join(__dirname, '../../ai_outputs/documentation')
+        outputDir: path.join(__dirname, '../ai_outputs/documentation')
       },
       {
         agentType: 'QA',
         tasks: ['test-case-generation', 'workflow-analysis'],
-        outputDir: path.join(__dirname, '../../ai_outputs/qa_reports')
+        outputDir: path.join(__dirname, '../ai_outputs/qa_reports')
       },
       {
         agentType: 'Process',
         tasks: ['standup-prep', 'visual-analysis'],
-        outputDir: path.join(__dirname, '../../ai_outputs/process_analysis')
+        outputDir: path.join(__dirname, '../ai_outputs/process_analysis')
       }
     ];
 

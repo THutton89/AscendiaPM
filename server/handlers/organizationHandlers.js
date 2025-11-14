@@ -11,13 +11,15 @@ async function handleCreateOrganization(userId, orgData) {
   }
 
   db.run(
-    `INSERT INTO organizations (name, description, owner_id, settings)
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO organizations (name, description, owner_id, settings, work_hours_start, work_hours_end)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       orgData.name,
       orgData.description || '',
       userId,
-      JSON.stringify(orgData.settings || {})
+      JSON.stringify(orgData.settings || {}),
+      orgData.workHoursStart || '07:00',
+      orgData.workHoursEnd || '17:00'
     ]
   );
 
@@ -61,7 +63,7 @@ async function handleGetOrganization(userId) {
   }
 
   const orgResult = db.exec(
-    'SELECT id, name, description, owner_id, settings, created_at FROM organizations WHERE id = ?',
+    'SELECT id, name, description, owner_id, settings, work_hours_start, work_hours_end, created_at FROM organizations WHERE id = ?',
     [organizationId]
   );
 
@@ -78,7 +80,9 @@ async function handleGetOrganization(userId) {
       description: row[2],
       owner_id: row[3],
       settings: JSON.parse(row[4] || '{}'),
-      created_at: row[5]
+      workHoursStart: row[5],
+      workHoursEnd: row[6],
+      created_at: row[7]
     }
   };
 }
@@ -110,6 +114,12 @@ async function handleUpdateOrganization(userId, orgData) {
     if (key === 'settings') {
       fields.push(`${key} = ?`);
       values.push(JSON.stringify(value));
+    } else if (key === 'workHoursStart') {
+      fields.push('work_hours_start = ?');
+      values.push(value);
+    } else if (key === 'workHoursEnd') {
+      fields.push('work_hours_end = ?');
+      values.push(value);
     } else {
       fields.push(`${key} = ?`);
       values.push(value);
@@ -137,7 +147,8 @@ async function handleGetOrganizationMembers(userId) {
 
   const organizationId = userResult[0].values[0][0];
   if (!organizationId) {
-    throw new Error('User is not part of any organization');
+    // User is not part of any organization, return empty array
+    return { success: true, members: [] };
   }
 
   const membersResult = db.exec(

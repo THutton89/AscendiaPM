@@ -13,6 +13,9 @@ import {
   Calendar,
   LogOut,
   FileText,
+  Code,
+  Shield,
+  ScrollText,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -34,9 +37,12 @@ export function Layout({ children }: LayoutProps) {
     { path: '/team', icon: Users, label: 'Team' },
     { path: '/calendar', icon: Calendar, label: 'Monthly Calendar' },
     { path: '/ai-features', icon: BrainCircuit, label: 'AI Features' },
+    // { path: '/sandbox', icon: Code, label: 'Code Sandbox' },
     { path: '/time-tracking', icon: Clock, label: 'Time Tracking' },
     { path: '/meetings', icon: Users, label: 'Meetings' },
     { path: '/api-docs', icon: FileText, label: 'API Docs' },
+    { path: '/privacy-policy', icon: Shield, label: 'Privacy Policy' },
+    { path: '/terms-of-service', icon: ScrollText, label: 'Terms of Service' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -99,7 +105,14 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="app-container">
       <div className="sidebar">
-        <div className="sidebar-header"></div>
+        <div className="sidebar-header">
+          <div className="flex items-center space-x-2 px-4 py-4">
+            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">AX</span>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Axsendia PM</h2>
+          </div>
+        </div>
         <nav className="sidebar-nav-grid">
           {navItems.map(({ path, icon: Icon, label }) => (
             <Link
@@ -117,7 +130,7 @@ export function Layout({ children }: LayoutProps) {
         <header className="app-header">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center">
-              <h1 className="text-xl font-semibold text-gray-900">Project Management</h1>
+              <h1 className="text-xl font-semibold text-gray-900">Axsendia PM</h1>
               <div className="flex items-center space-x-2 flex-shrink-0" style={{ flexWrap: 'nowrap', minWidth: 'fit-content' }}>
                 {user && (
                   <div className="flex items-center space-x-2 text-sm text-gray-700">

@@ -1,4 +1,6 @@
 
+import { api } from './api';
+
 export interface LMStudioConfig {
   baseUrl: string;
   model: string;
@@ -8,7 +10,7 @@ export interface LMStudioConfig {
 
 export async function loadConfig(): Promise<LMStudioConfig> {
   try {
-    return await window.electronAPI.getLmstudioConfig();
+    return await api('lmstudio-get-config');
   } catch (error) {
     console.error('Error loading config:', error);
     return {
@@ -20,7 +22,7 @@ export async function loadConfig(): Promise<LMStudioConfig> {
 
 export async function saveConfig(config: LMStudioConfig): Promise<void> {
   try {
-    await window.electronAPI.saveLmstudioConfig(config);
+    await api('lmstudio-update-config', config);
   } catch (error) {
     console.error('Error saving config:', error);
     throw error;

@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { Copy } from 'lucide-react';
 import './Settings.css';
+import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 interface ApiKey {
   id: number;
@@ -13,6 +15,7 @@ interface ApiKey {
 }
 
 const APIKeys = () => {
+  const { user } = useAuth();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -27,7 +30,7 @@ const APIKeys = () => {
 
   const loadApiKeys = async () => {
     try {
-      const keys = await window.electronAPI.getApiKeys();
+      const keys = await api('get-api-keys');
       setApiKeys(keys);
     } catch (error) {
       console.error('Failed to load API keys:', error);
@@ -43,14 +46,18 @@ const APIKeys = () => {
       return;
     }
 
+    if (!user?.id) {
+      setStatus('You must be logged in to create API keys');
+      return;
+    }
+
     setIsCreating(true);
     setStatus('Creating API key...');
 
     try {
-      // For now, use user ID 1. In a real app, you'd get this from auth context
-      const result = await window.electronAPI.createApiKey({
+      const result = await api('create-api-key', {
         name: newKeyName.trim(),
-        userId: 1
+        userId: user.id
       });
 
       setApiKeys(prev => [...prev, {
@@ -81,7 +88,7 @@ const APIKeys = () => {
     }
 
     try {
-      await window.electronAPI.deleteApiKey(id);
+      await api('delete-api-key', { id });
       setApiKeys(prev => prev.filter(key => key.id !== id));
       setStatus('API key deleted successfully');
       setTimeout(() => setStatus(''), 3000);

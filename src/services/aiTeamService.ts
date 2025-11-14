@@ -1,6 +1,7 @@
 import { join } from 'path';
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
 import { lmStudioClient } from '../utils/lmStudioClient';
+import { api } from '../utils/api';
 
 // Ensure output directories exist
 const OUTPUT_BASE = join(__dirname, '../../ai_outputs');
@@ -55,7 +56,7 @@ export class AITeamService {
       throw new Error(`No agent configured for task type: ${taskType}`);
     }
 
-    const agentConfig = await window.electronAPI.getAgentConfig();
+    const agentConfig = await api('get-agent-config');
     const modelName = agentConfig[agent.agentType];
 
     if (!modelName) {
@@ -110,7 +111,7 @@ export class AITeamService {
           result = await lmStudioClient.getSummary(prompt, modelName);
           break;
         case 'read-code':
-          const code = await window.electronAPI.readCodeSandbox();
+          const code = await api('read-code-sandbox');
           prompt = `Analyze the following code and provide a summary of its functionality, potential bugs, and suggestions for improvement:\n\n${code}`;
           result = await lmStudioClient.getSummary(prompt, modelName);
           break;

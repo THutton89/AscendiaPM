@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { meetingsDb } from '../db/meetings';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Download, FileText } from 'lucide-react';
+import { api } from '../utils/api';
 
 interface VideoCallProps {
   meetingId: number;
@@ -39,7 +40,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, roomName, onEndCall })
 
         // Then generate a transcript (placeholder for now)
         try {
-          const transcript = await window.electronAPI.transcribeAudio(null);
+          const transcript = await api('transcribe-audio', { audioBlob: null });
           await meetingsDb.saveTranscript(recordingId, transcript);
         } catch (error) {
           console.error('Failed to generate transcript:', error);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
+import { api } from '../utils/api';
 
 interface GoogleSignInButtonProps {
   onSignIn: (user: any) => void;
@@ -17,16 +18,21 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 }) => {
   const handleGoogleSignIn = async () => {
     try {
-      const result = await window.electronAPI.googleOAuthSignin();
+      // Get the OAuth URL from backend
+      const result = await api('google-oauth-signin');
 
-      if (result.success) {
-        onSignIn(result.user);
-      } else {
-        onError(result.error || 'Google sign-in failed');
+      if (!result || !result.authUrl) {
+        throw new Error('Failed to get OAuth URL');
       }
+
+      // Store the current page for redirect after OAuth
+      sessionStorage.setItem('oauth-redirect', window.location.href);
+
+      // Redirect to Google OAuth
+      window.location.href = result.authUrl;
     } catch (error) {
       console.error('Google sign-in error:', error);
-      onError('An unexpected error occurred during sign-in');
+      onError(error.message || 'An unexpected error occurred during sign-in');
     }
   };
 

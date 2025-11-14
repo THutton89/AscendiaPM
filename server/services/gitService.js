@@ -1,11 +1,10 @@
 // services/gitService.js
-const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const git = require('isomorphic-git');
 
 async function initGitRepo() {
-  const repoPath = path.join(app.getPath('documents'), 'focal-repos', 'default');
+  const repoPath = path.join(__dirname, '../data/focal-repos', 'default');
   
   if (!fs.existsSync(repoPath)) {
     fs.mkdirSync(repoPath, { recursive: true });

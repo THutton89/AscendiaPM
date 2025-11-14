@@ -1,10 +1,10 @@
 // database.js
-const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const initSqlJs = require('sql.js/dist/sql-wasm.js');
+const initSqlJs = require('sql.js');
 
 let db;
+let dbInitializationPromise;
 
 /**
  * This function runs ONCE when the module is loaded.
@@ -17,10 +17,10 @@ async function initializeDatabaseInternal() {
 
   try {
     const SQL = await initSqlJs({
-      locateFile: file => require.resolve('sql.js/dist/sql-wasm.wasm')
+      locateFile: file => `./node_modules/sql.js/dist/${file}`
     });
 
-    const dbPath = path.join(app.getPath('appData'), '.project-manager.db');
+    const dbPath = path.join(__dirname, 'data', '.project-manager.db');
 
     // Ensure data directory exists
     if (!fs.existsSync(path.dirname(dbPath))) {
@@ -61,6 +61,8 @@ async function initializeDatabaseInternal() {
         description TEXT,
         owner_id INTEGER,
         settings TEXT,
+        work_hours_start TEXT DEFAULT '07:00',
+        work_hours_end TEXT DEFAULT '17:00',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
@@ -84,7 +86,7 @@ async function initializeDatabaseInternal() {
         max_daily_hours REAL DEFAULT 8.0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+        FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
       );
     `);
 
@@ -375,6 +377,21 @@ async function initializeDatabaseInternal() {
         db.run("ALTER TABLE embeddings ADD COLUMN organization_id INTEGER NOT NULL DEFAULT 1 REFERENCES organizations(id) ON DELETE CASCADE;");
       }
 
+      // Check if organizations table has work hours columns
+      const orgColumns = db.exec("PRAGMA table_info(organizations);");
+      const hasWorkHoursStart = orgColumns[0].values.some(row => row[1] === 'work_hours_start');
+      const hasWorkHoursEnd = orgColumns[0].values.some(row => row[1] === 'work_hours_end');
+
+      if (!hasWorkHoursStart) {
+        console.log('Adding work_hours_start column to organizations table...');
+        db.run("ALTER TABLE organizations ADD COLUMN work_hours_start TEXT DEFAULT '07:00';");
+      }
+
+      if (!hasWorkHoursEnd) {
+        console.log('Adding work_hours_end column to organizations table...');
+        db.run("ALTER TABLE organizations ADD COLUMN work_hours_end TEXT DEFAULT '17:00';");
+      }
+
       // Create default organization if it doesn't exist
       const orgCheck = db.exec('SELECT id FROM organizations LIMIT 1');
       if (orgCheck.length === 0 || orgCheck[0].values.length === 0) {
@@ -499,123 +516,56 @@ async function initializeDatabaseInternal() {
     try {
       const columns = db.exec("PRAGMA table_info(api_keys);");
       if (columns.length > 0 && columns[0].values) {
-        const userIdColumnExists = columns[0].values.some(row => row[1] === 'user_id');
-        if (!userIdColumnExists) {
-          // Drop and recreate the table with correct schema
-          db.run("DROP TABLE IF EXISTS api_keys;");
-          db.run(`
-            CREATE TABLE api_keys (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              key TEXT NOT NULL UNIQUE,
-              name TEXT NOT NULL,
-              user_id INTEGER,
-              active INTEGER NOT NULL DEFAULT 1,
-              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              last_used_at TEXT,
-              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-          `);
-          console.log('Recreated api_keys table with user_id column');
+        const nameColumnExists = columns[0].values.some(row => row[1] === 'name');
+        if (!nameColumnExists) {
+          db.run("ALTER TABLE api_keys ADD COLUMN name TEXT NOT NULL DEFAULT 'default-key';");
         }
       }
     } catch (error) {
-      console.log('Error migrating api_keys table:', error.message);
+      console.log('api_keys table not found or error checking columns:', error.message);
     }
 
-    // Check and migrate projects table
+    // Add GitHub OAuth columns to users table
     try {
-      const columns = db.exec("PRAGMA table_info(projects);");
-      if (columns.length > 0 && columns[0].values) {
-        const userIdColumnExists = columns[0].values.some(row => row[1] === 'user_id');
-        if (!userIdColumnExists) {
-          // Drop and recreate the table with correct schema
-          db.run("DROP TABLE IF EXISTS projects;");
-          db.run(`
-            CREATE TABLE projects (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              user_id INTEGER NOT NULL,
-              name TEXT NOT NULL,
-              description TEXT,
-              status TEXT NOT NULL DEFAULT 'active',
-              start_date TEXT,
-              end_date TEXT,
-              color TEXT DEFAULT '#2196F3',
-              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-          `);
-          console.log('Recreated projects table with user_id column');
+      const userColumns = db.exec("PRAGMA table_info(users);");
+      if (userColumns.length > 0 && userColumns[0].values) {
+        const githubIdExists = userColumns[0].values.some(row => row[1] === 'github_id');
+        if (!githubIdExists) {
+          console.log('Adding github_id column to users table...');
+          db.run("ALTER TABLE users ADD COLUMN github_id TEXT;");
         }
       }
     } catch (error) {
-      console.log('Error migrating projects table:', error.message);
+      console.log('Error adding GitHub columns to users table:', error.message);
     }
 
-    // Check and migrate meetings table
-    try {
-      const columns = db.exec("PRAGMA table_info(meetings);");
-      if (columns.length > 0 && columns[0].values) {
-        const statusColumnExists = columns[0].values.some(row => row[1] === 'status');
-        if (!statusColumnExists) {
-          // Add status column to existing meetings table
-          db.run("ALTER TABLE meetings ADD COLUMN status TEXT NOT NULL DEFAULT 'scheduled';");
-          console.log('Added status column to meetings table');
-        }
-      }
-    } catch (error) {
-      console.log('Error migrating meetings table:', error.message);
-    }
-
-    // --- End of schema ---
-
-    console.log('Database tables initialized successfully');
     clearTimeout(timeout);
-    return db; // Return the initialized database
+    console.log('Database initialized successfully');
+    return db;
   } catch (err) {
     clearTimeout(timeout);
     console.error('Database initialization failed:', err);
-    throw err; // Re-throw to reject the promise
+    throw err;
   }
 }
 
-// This promise is created *immediately* and memoized.
-// All calls to getDatabase() will wait on this *single* promise.
-const dbInitializationPromise = initializeDatabaseInternal();
-
-/**
- * Gets the initialized database instance.
- * This is now an ASYNC function.
- * @returns {Promise<sqlite3.Database>} The database instance.
- */
-async function getDatabase() {
-  // Await the single, module-level promise
-  await dbInitializationPromise;
-  if (!db) {
-    // This should theoretically never happen
-    throw new Error('Database not initialized after promise.');
+function getDatabase() {
+  if (!dbInitializationPromise) {
+    dbInitializationPromise = initializeDatabaseInternal();
   }
-  return db; // `db` is now guaranteed to be set
+  return dbInitializationPromise;
 }
 
-/**
- * Saves the in-memory database to the file system.
- * This is now also an ASYNC function.
- */
 async function saveDatabase() {
-  try {
-    const dbInstance = await getDatabase(); // Make sure it's initialized
-    const data = dbInstance.export();
-    const dbPath = path.join(app.getPath('appData'), '.project-manager.db');
-    fs.writeFileSync(dbPath, data);
-    console.log('Database saved successfully.');
-  } catch (err) {
-    console.error('Failed to save database:', err);
-  }
-};
+  const dbInstance = await getDatabase();
+  const data = dbInstance.export();
+  const buffer = Buffer.from(data);
+  const dbPath = path.join(__dirname, 'data', '.project-manager.db');
+  fs.writeFileSync(dbPath, buffer);
+}
 
 module.exports = {
-  getDatabase,    // Now async
-  saveDatabase,   // Now async
-  dbInitializationPromise // Export the promise for main.js to wait on
+  getDatabase,
+  saveDatabase,
+  dbInitializationPromise: getDatabase()
 };

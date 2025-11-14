@@ -1,3 +1,5 @@
+import { api } from '../utils/api';
+
 export interface Sprint {
   id: number;
   name: string;
@@ -9,41 +11,67 @@ export interface Sprint {
 }
 
 export const sprintsDb = {
-  create: (sprint: Omit<Sprint, 'id' | 'created_at'>) => window.electronAPI.dbQuery(`
-    INSERT INTO sprints (name, project_id, start_date, end_date, goal)
-    VALUES (@name, @project_id, @start_date, @end_date, @goal)
-  `, [sprint]),
+  create: async (sprint: Omit<Sprint, 'id' | 'created_at'>) => {
+    await api('db-query', {
+      query: `
+        INSERT INTO sprints (name, project_id, start_date, end_date, goal)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      params: [sprint.name, sprint.project_id, sprint.start_date, sprint.end_date, sprint.goal]
+    });
+  },
 
-  getAll: (projectId: number) => window.electronAPI.dbQuery(`
-    SELECT * FROM sprints
-    WHERE project_id = ?
-    ORDER BY start_date DESC
-  `, [projectId]),
+  getAll: async (projectId: number) => {
+    const result = await api('db-query', {
+      query: `
+        SELECT * FROM sprints
+        WHERE project_id = ?
+        ORDER BY start_date DESC
+      `,
+      params: [projectId]
+    });
+    return result;
+  },
 
-  getActive: (projectId: number) => {
+  getActive: async (projectId: number) => {
     const now = new Date().toISOString();
-    return window.electronAPI.dbQuery(`
-      SELECT * FROM sprints
-      WHERE project_id = ?
-      AND start_date <= ?
-      AND end_date >= ?
-      LIMIT 1
-    `, [projectId, now, now]);
+    const result = await api('db-query', {
+      query: `
+        SELECT * FROM sprints
+        WHERE project_id = ?
+        AND start_date <= ?
+        AND end_date >= ?
+        LIMIT 1
+      `,
+      params: [projectId, now, now]
+    });
+    return result;
   },
 
-  update: (id: number, sprint: Partial<Sprint>) => {
+  update: async (id: number, sprint: Partial<Sprint>) => {
     const fields = Object.keys(sprint)
-      .map(key => `${key} = @${key}`)
+      .map(key => `${key} = ?`)
       .join(', ');
-    
-    if (!fields) return Promise.resolve();
 
-    return window.electronAPI.dbQuery(`
-      UPDATE sprints
-      SET ${fields}
-      WHERE id = @id
-    `, [{ ...sprint, id }]);
+    if (!fields) return;
+
+    const values = Object.values(sprint);
+    values.push(id); // Add id at the end for WHERE clause
+
+    await api('db-query', {
+      query: `
+        UPDATE sprints
+        SET ${fields}
+        WHERE id = ?
+      `,
+      params: values
+    });
   },
 
-  delete: (id: number) => window.electronAPI.dbQuery('DELETE FROM sprints WHERE id = ?', [id])
+  delete: async (id: number) => {
+    await api('db-query', {
+      query: 'DELETE FROM sprints WHERE id = ?',
+      params: [id]
+    });
+  }
 };

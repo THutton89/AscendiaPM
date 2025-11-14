@@ -3,8 +3,8 @@
 // Import all handlers
 const { handleDbQuery } = require('../handlers/generalHandlers');
 const { handleCreateProject, handleGetProjects, handleUpdateProject, handleDeleteProject } = require('../handlers/projectHandlers');
-const { handleGetUsers } = require('../handlers/userHandlers');
-const { handleSignup, handleLogin, handleGoogleOAuthSignin, handleValidateEmail, handleCheckEmailExists } = require('../handlers/authHandlers');
+const { handleGetUsers, handleGetUser, handleCreateUser, handleUpdateUser, handleDeleteUser } = require('../handlers/userHandlers');
+const { handleSignup, handleLogin, handleGoogleOAuthSignin, handleGoogleOAuthCallback, handleGitHubOAuthSignin, handleGitHubOAuthCallback, handleValidateEmail, handleCheckEmailExists, handleLogout } = require('../handlers/authHandlers');
 const { handleCreateTask, handleGetTasks, handleUpdateTask, handleDeleteTask } = require('../handlers/taskHandlers');
 const { handleDispatchAITask, handleGetInferenceServerConfig, handleSaveInferenceServerConfig, handleTestInferenceServerConnection, handleGetInferenceServerSummary, handleGetAvailableModels } = require('../handlers/aiHandlers');
 const { handleCreateComment, handleGetComments, handleDeleteComment } = require('../handlers/commentHandlers');
@@ -14,6 +14,10 @@ const { handleGetSettings, handleSaveSetting, handleUpdateSetting, handleDeleteS
 const { handleCreateApiKey, handleGetApiKeys, handleDeleteApiKey } = require('../handlers/apikeyHandlers');
 const { handleGetAppointments, handleCreateAppointment, handleUpdateAppointment, handleDeleteAppointment } = require('../handlers/schedulingHandlers');
 const { handleCreateOrganization, handleGetOrganization, handleUpdateOrganization, handleGetOrganizationMembers, handleInviteUserToOrganization, handleRemoveUserFromOrganization, handleUpdateUserRole } = require('../handlers/organizationHandlers');
+const { handleCreateMeeting, handleGetMeetings, handleAddParticipant } = require('../handlers/meetingHandlers');
+const { handleCreateSprint, handleGetSprints, handleGetActiveSprint, handleUpdateSprint, handleDeleteSprint } = require('../handlers/sprintHandlers');
+const { handleCreateTimeEntry, handleGetTimeEntriesByTask, handleGetTimeEntriesByUser, handleGetUserWorkload, handleGetProjectTimeTracking } = require('../handlers/timeTrackingHandlers');
+const { handleGetGitHubRepos, handleCreateGitHubCommit, handleGetGitHubRepoContents, handlePullGitHubRepo } = require('../handlers/gitHandlers');
 
 // Wrapper to handle async/await errors in Express
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -52,8 +56,24 @@ function registerApiRoutes(apiApp, auth) {
   }));
 
   // Users
+  apiApp.post('/api/users', auth, wrap(async (req, res) => {
+    const result = await handleCreateUser(req.body);
+    res.json(result);
+  }));
   apiApp.get('/api/users', auth, wrap(async (req, res) => {
     const result = await handleGetUsers();
+    res.json(result);
+  }));
+  apiApp.get('/api/users/:id', auth, wrap(async (req, res) => {
+    const result = await handleGetUser(req.params.id);
+    res.json(result);
+  }));
+  apiApp.put('/api/users/:id', auth, wrap(async (req, res) => {
+    const result = await handleUpdateUser(req.params.id, req.body);
+    res.json(result);
+  }));
+  apiApp.delete('/api/users/:id', auth, wrap(async (req, res) => {
+    const result = await handleDeleteUser(req.params.id);
     res.json(result);
   }));
 
@@ -70,6 +90,54 @@ function registerApiRoutes(apiApp, auth) {
     const result = await handleGoogleOAuthSignin();
     res.json(result);
   }));
+  apiApp.get('/api/auth/google/callback', wrap(async (req, res) => {
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=No authorization code provided`);
+    }
+
+    try {
+      const result = await handleGoogleOAuthCallback(code);
+
+      if (result.success) {
+        // Create a JWT token or session for the user
+        // For now, we'll redirect with user data in query params (not secure for production)
+        const authData = encodeURIComponent(JSON.stringify({ user: result.user, token: result.token }));
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?success=true&user=${authData}`);
+      } else {
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=${encodeURIComponent(result.error)}`);
+      }
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=${encodeURIComponent('Authentication failed')}`);
+    }
+  }));
+  apiApp.post('/api/auth/github-signin', wrap(async (req, res) => {
+    const result = await handleGitHubOAuthSignin();
+    res.json(result);
+  }));
+  apiApp.get('/api/auth/github/callback', wrap(async (req, res) => {
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=No authorization code provided`);
+    }
+
+    try {
+      const result = await handleGitHubOAuthCallback(code);
+
+      if (result.success) {
+        // Create a JWT token or session for the user
+        // For now, we'll redirect with user data in query params (not secure for production)
+        const authData = encodeURIComponent(JSON.stringify({ user: result.user, token: result.token }));
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?success=true&user=${authData}`);
+      } else {
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=${encodeURIComponent(result.error)}`);
+      }
+    } catch (error) {
+      console.error('GitHub OAuth callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5169'}/login?error=${encodeURIComponent('Authentication failed')}`);
+    }
+  }));
   apiApp.post('/api/auth/validate-email', wrap(async (req, res) => {
     const { email } = req.body;
     const result = await handleValidateEmail(email);
@@ -80,6 +148,10 @@ function registerApiRoutes(apiApp, auth) {
     const result = await handleCheckEmailExists(email);
     res.json(result);
   }));
+  apiApp.post('/api/auth/logout', auth, wrap(async (req, res) => {
+    const result = await handleLogout(req.auth.userId);
+    res.json(result);
+  }));
 
   // Tasks
   apiApp.post('/api/tasks', auth, wrap(async (req, res) => {
@@ -87,15 +159,15 @@ function registerApiRoutes(apiApp, auth) {
     res.json(result);
   }));
   apiApp.get('/api/tasks', auth, wrap(async (req, res) => {
-    const result = await handleGetTasks(req.query.projectId);
+    const result = await handleGetTasks(req.query.projectId, req.auth.userId);
     res.json(result);
   }));
   apiApp.put('/api/tasks/:id', auth, wrap(async (req, res) => {
-    const result = await handleUpdateTask({ id: req.params.id, updates: req.body });
+    const result = await handleUpdateTask({ id: req.params.id, updates: req.body, userId: req.auth.userId });
     res.json(result);
   }));
   apiApp.delete('/api/tasks/:id', auth, wrap(async (req, res) => {
-    const result = await handleDeleteTask(req.params.id);
+    const result = await handleDeleteTask(req.params.id, req.auth.userId);
     res.json(result);
   }));
 
@@ -148,6 +220,49 @@ function registerApiRoutes(apiApp, auth) {
   }));
   apiApp.get('/api/git/read/:oid', auth, wrap(async (req, res) => {
     const result = await handleGitRead(req.params.oid);
+    res.json(result);
+  }));
+
+  // GitHub Integration
+  apiApp.get('/api/github/repos', auth, wrap(async (req, res) => {
+    const { accessToken } = req.query;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'GitHub access token required' });
+    }
+    const result = await handleGetGitHubRepos(accessToken);
+    res.json(result);
+  }));
+  apiApp.post('/api/github/commit', auth, wrap(async (req, res) => {
+    const { accessToken, ...commitData } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'GitHub access token required' });
+    }
+    const result = await handleCreateGitHubCommit(accessToken, commitData);
+    res.json(result);
+  }));
+  apiApp.get('/api/github/repos/:owner/:repo/contents', auth, wrap(async (req, res) => {
+    const { owner, repo } = req.params;
+    const { path, branch, accessToken } = req.query;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'GitHub access token required' });
+    }
+    const result = await handleGetGitHubRepoContents(accessToken, {
+      repo: `${owner}/${repo}`,
+      path: path || '',
+      branch: branch || 'main'
+    });
+    res.json(result);
+  }));
+  apiApp.post('/api/github/repos/:owner/:repo/pull', auth, wrap(async (req, res) => {
+    const { owner, repo } = req.params;
+    const { branch, accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'GitHub access token required' });
+    }
+    const result = await handlePullGitHubRepo(accessToken, {
+      repo: `${owner}/${repo}`,
+      branch: branch || 'main'
+    });
     res.json(result);
   }));
   apiApp.post('/api/bugs', auth, wrap(async (req, res) => {
@@ -224,11 +339,19 @@ function registerApiRoutes(apiApp, auth) {
     const result = await handleCreateOrganization(req.auth.userId, req.body);
     res.json(result);
   }));
+  apiApp.post('/api/create-organization', auth, wrap(async (req, res) => {
+    const result = await handleCreateOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
   apiApp.get('/api/organizations', auth, wrap(async (req, res) => {
     const result = await handleGetOrganization(req.auth.userId);
     res.json(result);
   }));
   apiApp.put('/api/organizations', auth, wrap(async (req, res) => {
+    const result = await handleUpdateOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.post('/api/update-organization', auth, wrap(async (req, res) => {
     const result = await handleUpdateOrganization(req.auth.userId, req.body);
     res.json(result);
   }));
@@ -246,6 +369,83 @@ function registerApiRoutes(apiApp, auth) {
   }));
   apiApp.put('/api/organizations/members/:userId/role', auth, wrap(async (req, res) => {
     const result = await handleUpdateUserRole(req.auth.userId, { ...req.body, userId: req.params.userId });
+    res.json(result);
+  }));
+  apiApp.post('/api/invite-user-to-organization', auth, wrap(async (req, res) => {
+    const result = await handleInviteUserToOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.post('/api/update-user-role', auth, wrap(async (req, res) => {
+    const result = await handleUpdateUserRole(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.post('/api/remove-user-from-organization', auth, wrap(async (req, res) => {
+    const result = await handleRemoveUserFromOrganization(req.auth.userId, req.body);
+    res.json(result);
+  }));
+
+  // Meetings
+  apiApp.post('/api/meetings', auth, wrap(async (req, res) => {
+    const result = await handleCreateMeeting(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.get('/api/meetings', auth, wrap(async (req, res) => {
+    const { days } = req.query;
+    const result = await handleGetMeetings(req.auth.userId, days);
+    res.json(result);
+  }));
+  apiApp.post('/api/meetings/:meetingId/participants', auth, wrap(async (req, res) => {
+    const result = await handleAddParticipant(req.params.meetingId, req.auth.userId);
+    res.json(result);
+  }));
+
+  // Sprints
+  apiApp.post('/api/sprints', auth, wrap(async (req, res) => {
+    const result = await handleCreateSprint(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.get('/api/sprints', auth, wrap(async (req, res) => {
+    const { projectId } = req.query;
+    const result = await handleGetSprints(req.auth.userId, projectId);
+    res.json(result);
+  }));
+  apiApp.get('/api/sprints/active', auth, wrap(async (req, res) => {
+    const { projectId } = req.query;
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectId is required' });
+    }
+    const result = await handleGetActiveSprint(req.auth.userId, projectId);
+    res.json(result);
+  }));
+  apiApp.put('/api/sprints/:id', auth, wrap(async (req, res) => {
+    const result = await handleUpdateSprint(req.auth.userId, req.params.id, req.body);
+    res.json(result);
+  }));
+  apiApp.delete('/api/sprints/:id', auth, wrap(async (req, res) => {
+    const result = await handleDeleteSprint(req.auth.userId, req.params.id);
+    res.json(result);
+  }));
+
+  // Time Tracking
+  apiApp.post('/api/time-entries', auth, wrap(async (req, res) => {
+    const result = await handleCreateTimeEntry(req.auth.userId, req.body);
+    res.json(result);
+  }));
+  apiApp.get('/api/time-entries/task/:taskId', auth, wrap(async (req, res) => {
+    const result = await handleGetTimeEntriesByTask(req.auth.userId, req.params.taskId);
+    res.json(result);
+  }));
+  apiApp.get('/api/time-entries/user', auth, wrap(async (req, res) => {
+    const result = await handleGetTimeEntriesByUser(req.auth.userId);
+    res.json(result);
+  }));
+  apiApp.get('/api/time-entries/workload', auth, wrap(async (req, res) => {
+    const { days } = req.query;
+    const result = await handleGetUserWorkload(req.auth.userId, days || 7);
+    res.json(result);
+  }));
+  apiApp.get('/api/time-entries/project/:projectId', auth, wrap(async (req, res) => {
+    const result = await handleGetProjectTimeTracking(req.auth.userId, req.params.projectId);
     res.json(result);
   }));
 

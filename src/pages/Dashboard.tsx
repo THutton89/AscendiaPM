@@ -1,8 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { projectsApi } from '../api/projects';
-import { tasksDb } from '../db/tasks';
-import { usersDb } from '../db/users';
+import { tasksApi } from '../api/tasks';
+import { api } from '../utils/api';
 import { BarChart3, Users, Calendar, CheckSquare } from 'lucide-react';
 import './Dashboard.css';
 
@@ -21,12 +21,26 @@ const Dashboard = () => {
 
   const { data: tasks } = useQuery({
     queryKey: ['tasks'],
-    queryFn: async () => tasksDb.getAll(),
+    queryFn: async () => {
+      try {
+        return await tasksApi.getAll();
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error);
+        return [];
+      }
+    },
   });
 
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => usersDb.getAll(),
+    queryFn: async () => {
+      try {
+        return await api('get-users');
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+        return [];
+      }
+    },
   });
 
   const activeProjects = projects?.filter(p => p.status === 'active').length || 0;

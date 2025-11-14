@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+server/data/
 # Runtime data
 pids
 *.pid
@@ -120,12 +121,6 @@ public
 .yarn/install-state.gz
 .pnp.*
 
-# Electron
-dist/
-dist-electron/
-release/
-build/
-out/
 
 # Database files
 *.db
@@ -293,9 +288,6 @@ out/
 .next/
 .nuxt/
 
-# Electron specific
-electron-builder-effective-config.yaml
-electron-builder.env
 
 # SQLite databases
 *.db
@@ -485,10 +477,6 @@ dist/
 out/
 release/
 
-# Electron build artifacts
-electron/dist/
-electron/build/
-electron/release/
 
 # Vite
 .vite/

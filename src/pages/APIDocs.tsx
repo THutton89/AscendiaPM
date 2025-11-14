@@ -4,8 +4,8 @@ export function APIDocs() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">API Documentation</h1>
-        <p className="text-gray-600">Complete guide to using the Project Management API endpoints</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Node.js REST API Documentation</h1>
+        <p className="text-gray-600">Complete guide to using the Project Management REST API endpoints</p>
       </div>
 
       {/* Authentication */}
@@ -13,30 +13,25 @@ export function APIDocs() {
         <h2 className="text-2xl font-semibold text-gray-900 mb-4">Authentication</h2>
         <div className="bg-blue-50 p-4 rounded-md mb-4">
           <p className="text-blue-800">
-            <strong>Note:</strong> Most API endpoints require an API key for authentication. Include the API key in your request headers or as a parameter.
+            <strong>Note:</strong> All API endpoints require JWT authentication. Include the JWT token in the Authorization header.
           </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">API Key Authentication</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">JWT Authentication</h3>
             <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
 {`// Header-based authentication
 headers: {
-  'Authorization': 'Bearer YOUR_API_KEY'
-}
-
-// Parameter-based authentication
-{
-  "apiKey": "YOUR_API_KEY"
+  'Authorization': 'Bearer YOUR_JWT_TOKEN'
 }`}
             </pre>
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Test API Key</h3>
-            <p className="text-gray-600 mb-2">For development and testing, you can use:</p>
-            <code className="bg-gray-100 px-2 py-1 rounded text-sm">test-api-key-123</code>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Base URL</h3>
+            <p className="text-gray-600 mb-2">All API endpoints are relative to:</p>
+            <code className="bg-gray-100 px-2 py-1 rounded text-sm">http://localhost:3069</code>
           </div>
         </div>
       </section>
@@ -50,10 +45,10 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Create Project</h3>
             <p className="text-gray-600 mb-2">Create a new project for the authenticated user.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>create-project</code>
+              <strong>POST</strong> <code>/api/projects</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
   "name": "string (required)",
@@ -79,28 +74,22 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Get Projects</h3>
             <p className="text-gray-600 mb-2">Retrieve all projects for the authenticated user.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>get-projects</code>
-            </div>
-            <div className="mb-3">
-              <strong>Parameters:</strong> None required
+              <strong>GET</strong> <code>/api/projects</code>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
               <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
-{`{
-  "success": true,
-  "projects": [
-    {
-      "id": 123,
-      "name": "Project Name",
-      "description": "Project description",
-      "status": "active",
-      "start_date": "2024-01-01",
-      "end_date": "2024-12-31",
-      "created_at": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}`}
+{`[
+  {
+    "id": 123,
+    "name": "Project Name",
+    "description": "Project description",
+    "status": "active",
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-31",
+    "created_at": "2024-01-01T00:00:00.000Z"
+  }
+]`}
               </pre>
             </div>
           </div>
@@ -109,13 +98,12 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Update Project</h3>
             <p className="text-gray-600 mb-2">Update an existing project.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>update-project</code>
+              <strong>PUT</strong> <code>/api/projects/:id</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
-  "id": "number (required)",
   "name": "string (optional)",
   "description": "string (optional)",
   "status": "active|completed|on_hold|cancelled (optional)",
@@ -138,13 +126,7 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Project</h3>
             <p className="text-gray-600 mb-2">Delete a project by ID.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>delete-project</code>
-            </div>
-            <div className="mb-3">
-              <strong>Parameters:</strong>
-              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
-{`"projectId": "number (required)"`}
-              </pre>
+              <strong>DELETE</strong> <code>/api/projects/:id</code>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
@@ -167,10 +149,10 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Create Task</h3>
             <p className="text-gray-600 mb-2">Create a new task.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>create-task</code>
+              <strong>POST</strong> <code>/api/tasks</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
   "project_id": "number (optional)",
@@ -198,37 +180,28 @@ headers: {
 
           <div className="border-l-4 border-green-500 pl-4">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Get Tasks</h3>
-            <p className="text-gray-600 mb-2">Retrieve tasks, optionally filtered by project.</p>
+            <p className="text-gray-600 mb-2">Retrieve all tasks.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>get-tasks</code>
-            </div>
-            <div className="mb-3">
-              <strong>Parameters:</strong>
-              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
-{`"projectId": "number (optional - filters by project)"`}
-              </pre>
+              <strong>GET</strong> <code>/api/tasks</code>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
               <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
-{`{
-  "success": true,
-  "tasks": [
-    {
-      "id": 456,
-      "project_id": 123,
-      "sprint_id": null,
-      "title": "Task Title",
-      "description": "Task description",
-      "status": "todo",
-      "priority": "medium",
-      "due_date": "2024-12-31",
-      "estimated_hours": 8,
-      "actual_hours": 0,
-      "created_at": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}`}
+{`[
+  {
+    "id": 456,
+    "project_id": 123,
+    "sprint_id": null,
+    "title": "Task Title",
+    "description": "Task description",
+    "status": "todo",
+    "priority": "medium",
+    "due_date": "2024-12-31",
+    "estimated_hours": 8,
+    "actual_hours": 0,
+    "created_at": "2024-01-01T00:00:00.000Z"
+  }
+]`}
               </pre>
             </div>
           </div>
@@ -237,22 +210,19 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Update Task</h3>
             <p className="text-gray-600 mb-2">Update an existing task.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>update-task</code>
+              <strong>PUT</strong> <code>/api/tasks/:id</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
-  "id": "number (required)",
-  "updates": {
-    "title": "string (optional)",
-    "description": "string (optional)",
-    "status": "todo|in_progress|done (optional)",
-    "priority": "low|medium|high (optional)",
-    "due_date": "YYYY-MM-DD (optional)",
-    "estimated_hours": "number (optional)",
-    "actual_hours": "number (optional)"
-  }
+  "title": "string (optional)",
+  "description": "string (optional)",
+  "status": "todo|in_progress|done (optional)",
+  "priority": "low|medium|high (optional)",
+  "due_date": "YYYY-MM-DD (optional)",
+  "estimated_hours": "number (optional)",
+  "actual_hours": "number (optional)"
 }`}
               </pre>
             </div>
@@ -270,13 +240,7 @@ headers: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Task</h3>
             <p className="text-gray-600 mb-2">Delete a task by ID.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>delete-task</code>
-            </div>
-            <div className="mb-3">
-              <strong>Parameters:</strong>
-              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
-{`"id": "number (required)"`}
-              </pre>
+              <strong>DELETE</strong> <code>/api/tasks/:id</code>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
@@ -290,19 +254,127 @@ headers: {
         </div>
       </section>
 
-      {/* Appointments API */}
+      {/* Users API */}
       <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Appointments API</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Users API</h2>
 
         <div className="space-y-6">
           <div className="border-l-4 border-blue-500 pl-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Create Appointment</h3>
-            <p className="text-gray-600 mb-2">Create a new appointment or meeting.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Create User</h3>
+            <p className="text-gray-600 mb-2">Create a new user account.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>POST /api/appointments</code>
+              <strong>POST</strong> <code>/api/users</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`{
+  "name": "string (required)",
+  "email": "string (required)",
+  "password": "string (required)",
+  "role": "admin|manager|member|guest (default: member)",
+  "organization_id": "number (optional)"
+}`}
+              </pre>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1">
+{`{
+  "success": true,
+  "data": {
+    "id": 123,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "member"
+  }
+}`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-green-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Users</h3>
+            <p className="text-gray-600 mb-2">Retrieve all users.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>GET</strong> <code>/api/users</code>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`[
+  {
+    "id": 123,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "member",
+    "organization_id": 456,
+    "created_at": "2024-01-01T00:00:00.000Z"
+  }
+]`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-yellow-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Update User</h3>
+            <p className="text-gray-600 mb-2">Update an existing user.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>PUT</strong> <code>/api/users/:id</code>
+            </div>
+            <div className="mb-3">
+              <strong>Request Body:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`{
+  "name": "string (optional)",
+  "email": "string (optional)",
+  "password": "string (optional)",
+  "role": "admin|manager|member|guest (optional)",
+  "availability_hours": "number (optional)"
+}`}
+              </pre>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1">
+{`{
+  "success": true
+}`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-red-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Delete User</h3>
+            <p className="text-gray-600 mb-2">Delete a user by ID.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>DELETE</strong> <code>/api/users/:id</code>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1">
+{`{
+  "success": true
+}`}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Meetings API */}
+      <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Meetings API</h2>
+
+        <div className="space-y-6">
+          <div className="border-l-4 border-blue-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Create Meeting</h3>
+            <p className="text-gray-600 mb-2">Create a new meeting.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>POST</strong> <code>/api/meetings</code>
+            </div>
+            <div className="mb-3">
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
   "title": "string (required)",
@@ -310,39 +382,37 @@ headers: {
   "start_time": "ISO string (required)",
   "end_time": "ISO string (required)",
   "location": "string (optional)",
-  "meeting_link": "string (optional)"
+  "meeting_link": "string (optional)",
+  "organizer_id": "number (required)",
+  "status": "scheduled|in_progress|completed|cancelled (default: scheduled)"
 }`}
               </pre>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
-              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1">
 {`{
-  "id": 123,
-  "title": "Meeting Title",
-  "description": "Meeting description",
-  "start_time": "2024-01-01T10:00:00.000Z",
-  "end_time": "2024-01-01T11:00:00.000Z",
-  "location": "Conference Room A",
-  "meeting_link": "https://meet.example.com/abc123",
-  "organizer_id": 456,
-  "status": "scheduled",
-  "created_at": "2024-01-01T09:00:00.000Z"
+  "success": true,
+  "meeting": {
+    "id": 123,
+    "title": "Team Meeting",
+    "organizer_name": "John Doe"
+  }
 }`}
               </pre>
             </div>
           </div>
 
           <div className="border-l-4 border-green-500 pl-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Appointments</h3>
-            <p className="text-gray-600 mb-2">Retrieve appointments, optionally filtered by date.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Meetings</h3>
+            <p className="text-gray-600 mb-2">Retrieve upcoming meetings for the authenticated user.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>GET /api/appointments</code>
+              <strong>GET</strong> <code>/api/meetings</code>
             </div>
             <div className="mb-3">
               <strong>Query Parameters:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
-{`"date": "YYYY-MM-DD (optional - filter by date)"`}
+{`"days": "number (optional - days ahead to look, default: 7)"`}
               </pre>
             </div>
             <div className="mb-3">
@@ -358,6 +428,7 @@ headers: {
     "location": "Conference Room A",
     "meeting_link": null,
     "organizer_id": 456,
+    "organizer_name": "John Doe",
     "status": "scheduled",
     "created_at": "2024-01-01T09:00:00.000Z"
   }
@@ -365,24 +436,31 @@ headers: {
               </pre>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="border-l-4 border-yellow-500 pl-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Update Appointment</h3>
-            <p className="text-gray-600 mb-2">Update an existing appointment.</p>
+      {/* Sprints API */}
+      <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Sprints API</h2>
+
+        <div className="space-y-6">
+          <div className="border-l-4 border-blue-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Create Sprint</h3>
+            <p className="text-gray-600 mb-2">Create a new sprint.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>PUT /api/appointments/:id</code>
+              <strong>POST</strong> <code>/api/sprints</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong>
+              <strong>Request Body:</strong>
               <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
 {`{
-  "title": "string (optional)",
+  "name": "string (required)",
   "description": "string (optional)",
-  "start_time": "ISO string (optional)",
-  "end_time": "ISO string (optional)",
-  "location": "string (optional)",
-  "meeting_link": "string (optional)",
-  "status": "scheduled|in_progress|completed|cancelled (optional)"
+  "project_id": "number (required)",
+  "start_date": "YYYY-MM-DD (required)",
+  "end_date": "YYYY-MM-DD (required)",
+  "status": "planned|active|completed|cancelled (default: planned)",
+  "goal": "string (optional)"
 }`}
               </pre>
             </div>
@@ -391,32 +469,166 @@ headers: {
               <pre className="bg-green-50 p-3 rounded text-sm mt-1">
 {`{
   "success": true,
-  "appointment": {
+  "data": {
     "id": 123,
-    "title": "Updated Meeting Title",
-    "status": "completed"
+    "name": "Sprint 1",
+    "status": "planned"
   }
 }`}
               </pre>
             </div>
           </div>
 
-          <div className="border-l-4 border-red-500 pl-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Appointment</h3>
-            <p className="text-gray-600 mb-2">Delete an appointment by ID.</p>
+          <div className="border-l-4 border-green-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Sprints</h3>
+            <p className="text-gray-600 mb-2">Retrieve sprints, optionally filtered by project.</p>
             <div className="bg-gray-100 p-3 rounded text-sm mb-2">
-              <strong>Endpoint:</strong> <code>DELETE /api/appointments/:id</code>
+              <strong>GET</strong> <code>/api/sprints</code>
             </div>
             <div className="mb-3">
-              <strong>Parameters:</strong> None (ID in URL path)
+              <strong>Query Parameters:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
+{`"projectId": "number (optional - filter by project)"`}
+              </pre>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`[
+  {
+    "id": 123,
+    "name": "Sprint 1",
+    "description": "First sprint",
+    "project_id": 456,
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-14",
+    "status": "active",
+    "goal": "Complete user authentication",
+    "created_at": "2024-01-01T00:00:00.000Z"
+  }
+]`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-purple-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Active Sprint</h3>
+            <p className="text-gray-600 mb-2">Get the currently active sprint for a project.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>GET</strong> <code>/api/sprints/active</code>
+            </div>
+            <div className="mb-3">
+              <strong>Query Parameters:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
+{`"projectId": "number (required)"`}
+              </pre>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`{
+  "success": true,
+  "data": {
+    "id": 123,
+    "name": "Sprint 1",
+    "status": "active"
+  }
+}`}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Time Tracking API */}
+      <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Time Tracking API</h2>
+
+        <div className="space-y-6">
+          <div className="border-l-4 border-blue-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Create Time Entry</h3>
+            <p className="text-gray-600 mb-2">Log time spent on a task.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>POST</strong> <code>/api/time-entries</code>
+            </div>
+            <div className="mb-3">
+              <strong>Request Body:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`{
+  "task_id": "number (required)",
+  "hours_spent": "number (required)",
+  "date": "YYYY-MM-DD (required)",
+  "description": "string (optional)"
+}`}
+              </pre>
             </div>
             <div className="mb-3">
               <strong>Response:</strong>
               <pre className="bg-green-50 p-3 rounded text-sm mt-1">
 {`{
   "success": true,
-  "message": "Appointment deleted successfully"
+  "data": {
+    "id": 123,
+    "task_id": 456,
+    "hours_spent": 2.5,
+    "date": "2024-01-01",
+    "user_name": "John Doe"
+  }
 }`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-green-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get Time Entries by Task</h3>
+            <p className="text-gray-600 mb-2">Retrieve all time entries for a specific task.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>GET</strong> <code>/api/time-entries/task/:taskId</code>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`[
+  {
+    "id": 123,
+    "task_id": 456,
+    "user_id": 789,
+    "hours_spent": 2.5,
+    "date": "2024-01-01",
+    "description": "Working on user authentication",
+    "user_name": "John Doe",
+    "created_at": "2024-01-01T17:00:00.000Z"
+  }
+]`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="border-l-4 border-purple-500 pl-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Get User Workload</h3>
+            <p className="text-gray-600 mb-2">Get time tracking summary for the authenticated user.</p>
+            <div className="bg-gray-100 p-3 rounded text-sm mb-2">
+              <strong>GET</strong> <code>/api/time-entries/workload</code>
+            </div>
+            <div className="mb-3">
+              <strong>Query Parameters:</strong>
+              <pre className="bg-gray-50 p-3 rounded text-sm mt-1">
+{`"days": "number (optional - days to look back, default: 7)"`}
+              </pre>
+            </div>
+            <div className="mb-3">
+              <strong>Response:</strong>
+              <pre className="bg-green-50 p-3 rounded text-sm mt-1 overflow-x-auto">
+{`[
+  {
+    "total_hours": 8.5,
+    "date": "2024-01-01"
+  },
+  {
+    "total_hours": 6.0,
+    "date": "2024-01-02"
+  }
+]`}
               </pre>
             </div>
           </div>

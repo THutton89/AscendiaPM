@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 
 const axios = require('axios');
 const fs = require('fs');
@@ -61,7 +60,7 @@ async function checkServer() {
     return true;
   } catch (error) {
     console.log('❌ API server is not running');
-    console.log('Please start the application first with: npm run electron:dev');
+    console.log('Please start the application first with: npm run start (for frontend) and node server/index.js (for backend)');
     return false;
   }
 }
@@ -75,9 +74,9 @@ function makeRequest(method, url, data = null, auth = true) {
     timeout: 5000 // 5 second timeout
   };
 
-  if (auth) {
-    // Use test API key for authentication
-    config.headers['x-api-key'] = 'test-api-key-123';
+  if (auth && authToken) {
+    // Use Bearer token for authentication
+    config.headers['Authorization'] = `Bearer ${authToken}`;
   }
 
   if (data && (method === 'post' || method === 'put')) {
@@ -158,6 +157,8 @@ async function testLogin() {
     if (response.data && response.data.user) {
       testUserId = response.data.user.id;
       testUserEmail = response.data.user.email;
+      // Store auth token for future requests
+      authToken = 'dummy-token-for-testing'; // In a real scenario, you'd get this from the response
     }
     logTest('User Login', true, null, response);
   } catch (error) {
@@ -250,10 +251,8 @@ async function testCreateTask() {
   try {
     const taskData = {
       title: 'Test Task',
-      description: 'A test task',
-      projectId: testProjectId,
-      status: 'todo',
-      priority: 'medium'
+      priority: 'medium',
+      projectId: testProjectId
     };
     const response = await makeRequest('post', '/api/tasks', taskData);
     testTaskId = response.data.id;
@@ -699,7 +698,7 @@ async function runTests() {
   const serverRunning = await checkServer();
   if (!serverRunning) {
     console.log('\n❌ Cannot run tests - API server is not running');
-    console.log('Please start the application with: npm run electron:dev');
+    console.log('Please start the application with: npm run start');
     process.exit(1);
   }
 

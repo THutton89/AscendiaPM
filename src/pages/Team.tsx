@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersDb } from '../db/users';
 import { User } from '../types';
-import { PlusIcon, UserIcon, Mail, Shield, Clock } from 'lucide-react';
+import { PlusIcon, UserIcon, Mail, Shield, Clock, Trash2 } from 'lucide-react';
 import ResourceManagement from '../components/ResourceManagement';
+import { api } from '../utils/api';
 import './Team.css';
 
 const Team = () => {
@@ -13,23 +13,32 @@ const Team = () => {
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'member' as User['role'],
     availability_hours: 40
   });
 
   const { data: users } = useQuery<User[]>({
     queryKey: ['users'],
-    queryFn: usersDb.getAll
+    queryFn: async () => {
+      const result = await api('get-users');
+      console.log('Users data:', result);
+      return result as User[];
+    }
   });
 
   const createUserMutation = useMutation({
-    mutationFn: async (user: Omit<User, 'id' | 'created_at'>) => await usersDb.create(user),
+    mutationFn: async (user: Omit<User, 'id' | 'created_at'> & { password: string }) => {
+      const result = await api('create-user', user);
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreating(false);
       setNewUser({
         name: '',
         email: '',
+        password: '',
         role: 'member',
         availability_hours: 40
       });
@@ -37,24 +46,42 @@ const Team = () => {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, user }: { id: number; user: Partial<User> }) => 
-      await usersDb.update(id, user),
+    mutationFn: async ({ id, user }: { id: number; user: Partial<User> }) => {
+      const result = await api('update-user', { id, ...user });
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createUserMutation.mutate(newUser);
-  };
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const result = await api('delete-user', { id });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    }
+  });
+ 
+   const handleSubmit = (e: React.FormEvent) => {
+     e.preventDefault();
+     createUserMutation.mutate(newUser);
+   };
 
-  const handleRoleChange = (userId: number, newRole: User['role']) => {
-    updateUserMutation.mutate({ id: userId, user: { role: newRole } });
-  };
+   const handleRoleChange = (userId: number, newRole: User['role']) => {
+     updateUserMutation.mutate({ id: userId, user: { role: newRole } });
+   };
 
-  const handleAvailabilityChange = (userId: number, hours: number) => {
-    updateUserMutation.mutate({ id: userId, user: { availability_hours: hours } });
+   const handleAvailabilityChange = (userId: number, hours: number) => {
+     updateUserMutation.mutate({ id: userId, user: { availability_hours: hours } });
+   };
+
+  const handleDelete = (userId: number) => {
+   if (window.confirm('Are you sure you want to delete this user?')) {
+     deleteUserMutation.mutate(userId);
+   }
   };
 
   return (
@@ -85,7 +112,7 @@ const Team = () => {
         <>
           {isCreating && (
             <form onSubmit={handleSubmit} className="team-card">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Name</label>
                   <input
@@ -103,6 +130,17 @@ const Team = () => {
                     type="email"
                     value={newUser.email}
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <input
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     required
                   />
@@ -197,6 +235,13 @@ const Team = () => {
                         <span className="ml-1 text-sm text-gray-500">hours/week</span>
                       </div>
                     </div>
+                     <button
+                       onClick={() => handleDelete(user.id)}
+                       className="flex items-center px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
+                     >
+                       <Trash2 className="w-4 h-4 mr-1" />
+                       Remove
+                     </button>
                   </div>
                 </div>
               </div>

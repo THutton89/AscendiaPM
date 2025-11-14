@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { lmStudioClient } from '../utils/lmStudioClient';
 import { AgentCard } from '../components/AgentCard';
 import { Search, FileText, MessageSquare, CheckSquare } from 'lucide-react';
+import { api } from '../utils/api';
 
 export default function AIFeatures() {
   const [connectionStatus, setConnectionStatus] = useState<'idle'|'connecting'|'connected'|'error'>('idle');
@@ -34,24 +34,24 @@ export default function AIFeatures() {
     const checkConnection = async () => {
       setConnectionStatus('connecting');
       try {
-        console.log('Testing LM Studio connection...');
-        const result = await lmStudioClient.testConnection();
+        console.log('Testing Inference Server connection...');
+        const result = await api('inference-server-test-connection');
         console.log('Connection result:', result);
         setConnectionStatus(result.success ? 'connected' : 'error');
         setError(result.success ? null : result.error || 'Connection failed');
         if (!result.success) {
-          console.error('LM Studio connection failed:', result.error);
+          console.error('Inference Server connection failed:', result.error);
         }
       } catch (err) {
         setConnectionStatus('error');
-        setError('Failed to connect to LM Studio');
+        setError('Failed to connect to Inference Server');
       }
     };
     checkConnection();
   }, []);
 
   const handleDispatchTask = async (taskType: string, params: string) => {
-    return window.electronAPI.dispatchAITask(taskType, params);
+    return api('dispatch-ai-task', { taskType, params });
   };
 
   const handleSemanticSearch = async () => {
@@ -60,7 +60,7 @@ export default function AIFeatures() {
     setIsSearching(true);
     setSearchResults([]);
     try {
-      const results = await window.electronAPI.semanticSearch({
+      const results = await api('semantic-search', {
         query: searchQuery,
         limit: 10
       });
@@ -77,34 +77,30 @@ export default function AIFeatures() {
     setEmbeddingStatus('processing');
     try {
       // Embed all projects
-      const projectsResponse = await window.electronAPI.getProjects();
-      if (projectsResponse.success && projectsResponse.projects) {
-        for (const project of projectsResponse.projects) {
-          await window.electronAPI.embedContent({
-            contentType: 'project',
-            contentId: project.id,
-            contentText: `${project.name} ${project.description || ''}`
-          });
-        }
+      const projects = await api('get-projects');
+      for (const project of projects) {
+        await api('embed-content', {
+          contentType: 'project',
+          contentId: project.id,
+          contentText: `${project.name} ${project.description || ''}`
+        });
       }
 
       // Embed all tasks
-      const tasksResponse = await window.electronAPI.getTasks();
-      if (tasksResponse.success && tasksResponse.tasks) {
-        for (const task of tasksResponse.tasks) {
-          await window.electronAPI.embedContent({
-            contentType: 'task',
-            contentId: task.id,
-            contentText: `${task.title} ${task.description || ''}`
-          });
-        }
+      const tasks = await api('get-tasks');
+      for (const task of tasks) {
+        await api('embed-content', {
+          contentType: 'task',
+          contentId: task.id,
+          contentText: `${task.title} ${task.description || ''}`
+        });
       }
 
       // Embed all comments using dbQuery
-      const commentsResponse = await window.electronAPI.dbQuery('SELECT id, content FROM comments');
-      if (commentsResponse && Array.isArray(commentsResponse)) {
-        for (const comment of commentsResponse) {
-          await window.electronAPI.embedContent({
+      const comments = await api('db-query', { query: 'SELECT id, content FROM comments' });
+      if (comments && Array.isArray(comments)) {
+        for (const comment of comments) {
+          await api('embed-content', {
             contentType: 'comment',
             contentId: comment.id,
             contentText: comment.content

@@ -1,7 +1,6 @@
 // handlers/bugHandlers.js
-const { app } = require('electron');
 const path = require('path');
-const { initGitRepo, storeBug, getBug, updateBug, listBugs } = require('../services/gitService');
+const { initGitRepo, storeBug, getBug, updateBug, listBugs, storeGitObject, readGitObject } = require('../services/gitService');
 
 async function handleCreateBug(bug) {
   const repoPath = await initGitRepo();
@@ -25,12 +24,12 @@ async function handleListBugs() {
 
 // These handlers are for the generic git store/read
 async function handleGitStore(type, content) {
-  const repoPath = path.join(app.getPath('documents'), 'focal-repos', 'default');
+  const repoPath = path.join(__dirname, '../data/focal-repos', 'default');
   return await storeGitObject(repoPath, type, JSON.stringify(content));
 }
 
 async function handleGitRead(oid) {
-  const repoPath = path.join(app.getPath('documents'), 'focal-repos', 'default');
+  const repoPath = path.join(__dirname, '../data/focal-repos', 'default');
   const content = await readGitObject(repoPath, oid);
   return JSON.parse(content);
 }

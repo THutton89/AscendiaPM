@@ -2,6 +2,7 @@ import { Project } from '../types';
 import { projectsApi } from '../api/projects';
 import { tasksDb } from '../db/tasks';
 import { usersDb } from '../db/users';
+import { api } from '../utils/api';
 
 interface TaskAssignment {
   task_id: number;
@@ -76,9 +77,9 @@ export const getResourceAllocation = async () => {
     tasksDb.getAll()
   ]);
 
-  const taskAssignments = await window.electronAPI.dbQuery(`
-    SELECT task_id, user_id, assigned_at FROM task_assignments
-  `) as unknown as TaskAssignment[];
+  const taskAssignments = await api('db-query', {
+    query: 'SELECT task_id, user_id, assigned_at FROM task_assignments'
+  }) as unknown as TaskAssignment[];
 
   return users.map(user => {
     const userTaskIds = taskAssignments

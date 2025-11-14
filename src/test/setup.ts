@@ -1,14 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Mock window.electronAPI for Electron
-Object.defineProperty(window, 'electronAPI', {
-  value: {
-    dbQuery: vi.fn(),
-  },
-  writable: true,
-});
-
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

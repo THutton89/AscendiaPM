@@ -1,271 +1,383 @@
 import React, { useState, useEffect } from 'react';
 import { Paper } from '@mui/material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { meetingsDb } from '../db/meetings';
-import { tasksDb } from '../db/tasks';
+import { useQuery } from '@tanstack/react-query';
 import { projectsApi } from '../api/projects';
-import { usersDb } from '../db/users';
+import { tasksApi } from '../api/tasks';
+import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import {
-  Scheduler,
-  ViewState,
-  DayView,
-  WeekView,
-  MonthView,
-  Toolbar,
-  DateNavigator,
-  TodayButton,
-  ViewSwitcher,
-  Appointments,
-  AppointmentTooltip,
-  AppointmentForm,
-  DragDropProvider,
-  EditingState,
-  IntegratedEditing,
-} from '../components/WrappedSchedulerComponents';
-import { Resources, GroupingPanel } from '@devexpress/dx-react-scheduler-material-ui';
-import { GroupingState, IntegratedGrouping } from '@devexpress/dx-react-scheduler';
 
-interface Appointment {
-  id: string | number;
+interface CalendarEvent {
+  id: string;
   title: string;
-  startDate: Date;
-  endDate: Date;
-  notes?: string;
-  projectId?: number;
-  assignedUserId?: number;
-  userName?: string;
-  projectName?: string;
-  projectColor?: string;
-  resourceId?: number; // Add resource ID for team member assignment
+  date: string;
+  type: 'meeting' | 'task' | 'project';
+  color: string;
+  description?: string;
+  startTime?: string; // For meetings with specific times
+  endTime?: string; // For meetings with specific times
+  allDay?: boolean; // For tasks/projects without specific times
 }
+
+type ViewMode = 'month' | 'week' | 'day';
 
 export function Calendar() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentViewName, setCurrentViewName] = useState('Week');
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | undefined>(undefined);
-  const [addedAppointment, setAddedAppointment] = useState<Appointment | {}>({});
-  const [appointmentChanges, setAppointmentChanges] = useState({});
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+
+  // Load organization settings for work hours
+  const { data: organization } = useQuery({
+    queryKey: ['organization', user?.id],
+    queryFn: async () => {
+      try {
+        const result = await api('get-organization');
+        return result?.organization || null;
+      } catch (error) {
+        console.error('Failed to fetch organization:', error);
+        return null;
+      }
+    },
+    enabled: !!user
+  });
 
   // Load meetings, tasks, and projects
   const { data: meetings } = useQuery({
     queryKey: ['meetings', user?.id],
-    queryFn: () => user ? meetingsDb.getUpcoming(user.id, 365) : [],
+    queryFn: async () => {
+      try {
+        const result = await api('get-meetings', { days: 365 });
+        return result || [];
+      } catch (error) {
+        console.error('Failed to fetch meetings:', error);
+        return [];
+      }
+    },
     enabled: !!user
   });
 
   const { data: tasks } = useQuery({
     queryKey: ['tasks'],
-    queryFn: () => tasksDb.getAll()
+    queryFn: async () => {
+      try {
+        return await tasksApi.getAll();
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error);
+        return [];
+      }
+    }
   });
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.getAll()
-  });
-
-  const { data: users } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersDb.getAll()
-  });
-
-  // Create resources (team members) - always create, even if empty
-  const resources = React.useMemo(() => {
-    if (!users || users.length === 0) {
-      return [{
-        fieldName: 'resourceId',
-        title: 'Team Member',
-        instances: []
-      }];
+    queryFn: async () => {
+      try {
+        return await projectsApi.getAll();
+      } catch (error) {
+        console.error('Failed to fetch projects:', error);
+        return [];
+      }
     }
+  });
 
-    return [{
-      fieldName: 'resourceId',
-      title: 'Team Member',
-      instances: users.map((user, index) => ({
-        id: user.id,
-        text: user.name || user.email || `User ${user.id}`,
-        color: `hsl(${(index * 137.5) % 360}, 70%, 50%)` // Generate different colors
-      }))
-    }];
-  }, [users]);
-
-  // Convert all events to appointments
-  const appointments: Appointment[] = React.useMemo(() => {
-    const appointmentList: Appointment[] = [];
-    let userIndex = 0; // For distributing appointments among users
+  // Convert all events to calendar events
+  const events: CalendarEvent[] = React.useMemo(() => {
+    const eventList: CalendarEvent[] = [];
 
     try {
-      // Convert meetings to appointments
+      // Convert meetings to events
       meetings?.forEach(meeting => {
-        if (meeting && meeting.id && meeting.title && meeting.start_time && meeting.end_time) {
-          // Assign to organizer if available, otherwise distribute among users (if any)
-          const assignedUserId = meeting.organizer_id || (users && users.length > 0 ? users[userIndex % users.length]?.id : undefined);
-          if (users && users.length > 0) userIndex++;
+        if (meeting && meeting.id && meeting.title && meeting.start_time) {
+          const startDateTime = new Date(meeting.start_time);
+          const endDateTime = new Date(meeting.end_time);
 
-          appointmentList.push({
+          eventList.push({
             id: `meeting-${meeting.id}`,
             title: `📅 ${meeting.title}`,
-            startDate: new Date(meeting.start_time),
-            endDate: new Date(meeting.end_time),
-            notes: meeting.description || meeting.location,
-            projectColor: '#3B82F6', // Blue for meetings
-            resourceId: assignedUserId
+            date: startDateTime.toISOString().split('T')[0],
+            type: 'meeting',
+            color: '#9ACD32', // Yellowish green for meetings
+            description: meeting.description || meeting.location,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            allDay: false
           });
         }
       });
 
-      // Convert tasks with due dates to appointments
+      // Convert tasks with due dates to events (all-day)
       tasks?.forEach(task => {
         if (task && task.id && task.title && task.due_date) {
-          const project = projects?.find(p => p.id === task.project_id);
-          // Distribute among available users (if any)
-          const assignedUserId = users && users.length > 0 ? users[userIndex % users.length]?.id : undefined;
-          if (users && users.length > 0) userIndex++;
-
-          appointmentList.push({
+          eventList.push({
             id: `task-${task.id}`,
             title: `📋 ${task.title}`,
-            startDate: new Date(task.due_date),
-            endDate: new Date(task.due_date),
-            notes: task.description,
-            projectId: task.project_id,
-            projectName: project?.name,
-            projectColor: '#10B981', // Green for tasks
-            resourceId: assignedUserId
+            date: task.due_date.split('T')[0],
+            type: 'task',
+            color: '#65A30D', // Emerald secondary for tasks
+            description: task.description,
+            allDay: true
           });
         }
       });
 
-      // Convert project start/end dates to appointments
+      // Convert project start/end dates to events (all-day)
       projects?.forEach(project => {
         if (project && project.id && project.name) {
           if (project.start_date) {
-            const assignedUserId = users && users.length > 0 ? users[userIndex % users.length]?.id : undefined;
-            if (users && users.length > 0) userIndex++;
-
-            appointmentList.push({
+            eventList.push({
               id: `project-start-${project.id}`,
               title: `🚀 ${project.name} - Start`,
-              startDate: new Date(project.start_date),
-              endDate: new Date(project.start_date),
-              notes: project.description,
-              projectColor: '#8B5CF6', // Purple for projects
-              resourceId: assignedUserId
+              date: project.start_date.split('T')[0],
+              type: 'project',
+              color: '#F59E0B', // Amber/orange for projects
+              description: project.description,
+              allDay: true
             });
           }
 
           if (project.end_date) {
-            const assignedUserId = users && users.length > 0 ? users[userIndex % users.length]?.id : undefined;
-            if (users && users.length > 0) userIndex++;
-
-            appointmentList.push({
+            eventList.push({
               id: `project-end-${project.id}`,
               title: `✅ ${project.name} - Due`,
-              startDate: new Date(project.end_date),
-              endDate: new Date(project.end_date),
-              notes: project.description,
-              projectColor: '#8B5CF6', // Purple for projects
-              resourceId: assignedUserId
+              date: project.end_date.split('T')[0],
+              type: 'project',
+              color: '#F59E0B', // Amber/orange for projects
+              description: project.description,
+              allDay: true
             });
           }
         }
       });
     } catch (error) {
-      console.error('Error creating appointments:', error);
+      console.error('Error creating events:', error);
     }
 
-    console.log('Created appointments:', appointmentList.length);
-    console.log('Appointment data:', appointmentList.slice(0, 5)); // Log first 5 appointments
-    console.log('Available users:', users?.length || 0);
-    return appointmentList;
-  }, [meetings, tasks, projects, users]);
+    return eventList;
+  }, [meetings, tasks, projects]);
 
-  const commitChanges = async ({ added, changed, deleted }: any) => {
-    try {
-      if (added && user) {
-        // Create a new meeting
-        const meetingData = {
-          title: added.title || 'New Meeting',
-          description: added.notes || '',
-          start_time: added.startDate.toISOString(),
-          end_time: added.endDate.toISOString(),
-          location: added.location || null,
-          meeting_link: null,
-          organizer_id: user.id,
-          status: 'scheduled' as const
-        };
+  // Generate calendar days for month view
+  const generateCalendarDays = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
 
-        const newMeeting = await meetingsDb.create(meetingData);
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-        // Add the organizer as a participant
-        await meetingsDb.addParticipant(newMeeting.id, user.id);
+    const days = [];
+    const current = new Date(startDate);
 
-        // Refresh the meetings queries
-        queryClient.invalidateQueries({ queryKey: ['meetings'], exact: false });
-        queryClient.invalidateQueries({ queryKey: ['upcomingMeetings'], exact: false });
-
-        console.log('Meeting created successfully:', newMeeting);
-      }
-
-      if (changed) {
-        console.log('Meeting changes:', changed);
-        // TODO: Implement updating existing meetings
-      }
-
-      if (deleted) {
-        console.log('Meeting deletions:', deleted);
-        // TODO: Implement deleting meetings
-      }
-    } catch (error) {
-      console.error('Error saving calendar changes:', error);
+    for (let i = 0; i < 42; i++) { // 6 weeks * 7 days
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
     }
+
+    return days;
   };
 
-  const appointmentComponent = (props: any) => {
-    const { children, style, data, ...restProps } = props;
-    const appointment = data as Appointment;
+  // Generate week days for week view
+  const generateWeekDays = (date: Date) => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
 
-    // Handle undefined appointment data
-    if (!appointment) {
-      return (
-        <div
-          {...restProps}
-          style={{
-            ...style,
-            backgroundColor: '#3174ad',
-            borderRadius: '8px',
-            border: 'none',
-          }}
-        >
-          {children || (
-            <div style={{ padding: '8px', color: 'white', fontSize: '14px' }}>
-              Loading...
-            </div>
-          )}
-        </div>
-      );
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(new Date(startOfWeek));
+      startOfWeek.setDate(startOfWeek.getDate() + 1);
     }
+    return days;
+  };
 
-    const backgroundColor = appointment.projectColor || '#3174ad';
+  // Generate hours for day/week views
+  const generateHours = () => {
+    const hours = [];
+    for (let i = 0; i < 24; i++) {
+      hours.push(i);
+    }
+    return hours;
+  };
+
+  const calendarDays = generateCalendarDays(currentDate);
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(event => event.date === dateStr);
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+
+      if (viewMode === 'month') {
+        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+      } else if (viewMode === 'week') {
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+      } else if (viewMode === 'day') {
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+      }
+
+      return newDate;
+    });
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isCurrentMonth = (date: Date) => {
+    return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+  };
+
+  // Week View Component
+  const WeekView = ({ currentDate, events, onDateClick }: { currentDate: Date; events: CalendarEvent[]; onDateClick: (date: string) => void }) => {
+    const weekDays = generateWeekDays(currentDate);
+    const hours = generateHours();
+
+    const getEventsForHour = (day: Date, hour: number) => {
+      const dayStr = day.toISOString().split('T')[0];
+      return events.filter(event => {
+        if (event.date !== dayStr) return false;
+
+        if (event.allDay) {
+          // Show all-day events at 9 AM
+          return hour === 9;
+        }
+
+        if (event.startTime) {
+          const startHour = new Date(event.startTime).getHours();
+          return startHour === hour;
+        }
+
+        return false;
+      });
+    };
 
     return (
-      <div
-        {...restProps}
-        style={{
-          ...style,
-          backgroundColor,
-          borderRadius: '8px',
-          border: 'none',
-        }}
-      >
-        {children || (
-          <div style={{ padding: '8px', color: 'white', fontSize: '14px' }}>
-            {appointment.title || 'Untitled'}
-          </div>
-        )}
+      <div className="week-view">
+        {/* Header with days */}
+        <div className="grid grid-cols-8 gap-1 mb-2">
+          <div className="p-2"></div> {/* Empty corner */}
+          {weekDays.map((day, index) => (
+            <div key={index} className="p-2 text-center font-semibold text-sm">
+              <div>{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+              <div className={`text-lg ${isToday(day) ? 'text-blue-600 font-bold' : ''}`}>
+                {day.getDate()}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Time grid */}
+        <div className="max-h-96 overflow-y-auto border rounded">
+          {hours.map(hour => (
+            <div key={hour} className="grid grid-cols-8 gap-1 border-b border-gray-100">
+              <div className="p-2 text-xs text-gray-500 text-right pr-4">
+                {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+              </div>
+              {weekDays.map((day, dayIndex) => {
+                const hourEvents = getEventsForHour(day, hour);
+
+                return (
+                  <div
+                    key={dayIndex}
+                    className="min-h-[40px] p-1 border-l border-gray-100 cursor-pointer hover:bg-gray-50"
+                    onClick={() => onDateClick(day.toISOString().split('T')[0])}
+                  >
+                    {hourEvents.map(event => (
+                      <div
+                        key={event.id}
+                        className="text-xs p-1 mb-1 rounded truncate"
+                        style={{ backgroundColor: event.color, color: 'white' }}
+                        title={`${event.title}${event.allDay ? ' (All Day)' : event.startTime ? ` (${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })})` : ''}`}
+                      >
+                        {event.allDay ? `${event.title} (All Day)` : event.title}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Day View Component
+  const DayView = ({ currentDate, events, onDateClick }: { currentDate: Date; events: CalendarEvent[]; onDateClick: (date: string) => void }) => {
+    const hours = generateHours();
+    const dayStr = currentDate.toISOString().split('T')[0];
+    const dayEvents = events.filter(event => event.date === dayStr);
+
+    const getEventsForHour = (hour: number) => {
+      return dayEvents.filter(event => {
+        if (event.allDay) {
+          // Show all-day events at 9 AM
+          return hour === 9;
+        }
+
+        if (event.startTime) {
+          const startHour = new Date(event.startTime).getHours();
+          return startHour === hour;
+        }
+
+        return false;
+      });
+    };
+
+    return (
+      <div className="day-view">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">
+            {currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </h3>
+        </div>
+
+        <div className="max-h-96 overflow-y-auto border rounded">
+          {hours.map(hour => {
+            const hourEvents = getEventsForHour(hour);
+
+            return (
+              <div key={hour} className="flex border-b border-gray-100">
+                <div className="w-20 p-2 text-xs text-gray-500 text-right pr-4 border-r">
+                  {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                </div>
+                <div className="flex-1 min-h-[60px] p-2">
+                  {hourEvents.map(event => (
+                    <div
+                      key={event.id}
+                      className="p-2 mb-1 rounded text-sm"
+                      style={{ backgroundColor: event.color, color: 'white' }}
+                    >
+                      <div className="font-medium">
+                        {event.allDay ? `${event.title} (All Day)` : event.title}
+                      </div>
+                      {event.startTime && !event.allDay && (
+                        <div className="text-xs opacity-90">
+                          {new Date(event.startTime).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                          {event.endTime && ` - ${new Date(event.endTime).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}`}
+                        </div>
+                      )}
+                      {event.description && (
+                        <div className="text-xs opacity-90 mt-1">{event.description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -273,66 +385,167 @@ export function Calendar() {
   return (
     <div className="calendar-container">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Monthly Calendar</h1>
-        <p className="text-gray-600">Overview of team appointments across the month</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Calendar</h1>
+        <p className="text-gray-600">Team calendar and scheduling</p>
       </div>
 
-      <Paper>
-        <Scheduler data={appointments} height={600}>
-          <ViewState
-            currentDate={currentDate}
-            currentViewName={currentViewName}
-            onCurrentDateChange={setCurrentDate}
-            onCurrentViewNameChange={setCurrentViewName}
-          />
+      <Paper className="p-6">
+        {/* Calendar Header */}
+        <div className="flex justify-between items-center mb-6">
+          <button
+            onClick={() => navigateDate('prev')}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+          >
+            ‹ Previous
+          </button>
 
-          <EditingState
-            onCommitChanges={commitChanges}
-            addedAppointment={addedAppointment}
-            appointmentChanges={appointmentChanges}
-            editingAppointment={editingAppointment}
-          />
+          <h2 className="text-xl font-semibold">
+            {viewMode === 'month'
+              ? currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+              : viewMode === 'week'
+              ? `Week of ${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+            }
+          </h2>
 
-          <IntegratedEditing />
+          <button
+            onClick={() => navigateDate('next')}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+          >
+            Next ›
+          </button>
+        </div>
 
-          {/* Grouping components must come after ViewState and editing */}
-          {resources && resources[0]?.instances?.length > 0 && appointments.some(apt => apt.resourceId) && (
-            <>
-              <GroupingState
-                grouping={[{ resourceName: 'resourceId' }]}
-                groupByDate={() => false}
-              />
-              <IntegratedGrouping />
-            </>
-          )}
+        {viewMode === 'month' && (
+          <>
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1 mb-4">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="p-2 text-center font-semibold text-gray-600">
+                  {day}
+                </div>
+              ))}
+            </div>
 
-          <DayView startDayHour={8} endDayHour={18} />
-          <WeekView startDayHour={8} endDayHour={18} />
-          <MonthView />
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDays.map((date, index) => {
+                const dayEvents = getEventsForDate(date);
+                const isCurrentMonthDay = isCurrentMonth(date);
 
-          <Toolbar />
-          <DateNavigator />
-          <TodayButton />
-          <ViewSwitcher />
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      min-h-[100px] p-2 border border-gray-200 cursor-pointer hover:bg-gray-50
+                      ${isToday(date) ? 'bg-blue-50 border-blue-300' : ''}
+                      ${!isCurrentMonthDay ? 'text-gray-400 bg-gray-50' : ''}
+                    `}
+                    onClick={() => setSelectedDate(date.toISOString().split('T')[0])}
+                  >
+                    <div className="text-sm font-medium mb-1">
+                      {date.getDate()}
+                    </div>
 
-          {/* Appointments must come before Resources */}
-          <Appointments appointmentComponent={appointmentComponent} />
-          <AppointmentTooltip showOpenButton showDeleteButton />
-          {/* <AppointmentForm /> */}
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 3).map(event => (
+                        <div
+                          key={event.id}
+                          className="text-xs p-1 rounded truncate"
+                          style={{ backgroundColor: event.color, color: 'white' }}
+                          title={event.title}
+                        >
+                          {event.title}
+                        </div>
+                      ))}
 
-          {/* Resources and GroupingPanel after Appointments */}
-          {resources && resources[0]?.instances?.length > 0 && appointments.some(apt => apt.resourceId) && (
-            <>
-              <Resources
-                data={resources}
-                mainResourceName="resourceId"
-              />
-              <GroupingPanel />
-            </>
-          )}
+                      {dayEvents.length > 3 && (
+                        <div className="text-xs text-gray-500">
+                          +{dayEvents.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
-          <DragDropProvider />
-        </Scheduler>
+        {viewMode === 'week' && (
+          <WeekView currentDate={currentDate} events={events} onDateClick={setSelectedDate} />
+        )}
+
+        {viewMode === 'day' && (
+          <DayView currentDate={currentDate} events={events} onDateClick={setSelectedDate} />
+        )}
+
+        {/* Selected Date Events */}
+        {selectedDate && (
+          <div className="mt-6 p-4 bg-gray-50 rounded-md">
+            <h3 className="font-semibold mb-3">
+              Events for {new Date(selectedDate).toLocaleDateString()}
+            </h3>
+
+            <div className="space-y-2">
+              {getEventsForDate(new Date(selectedDate)).map(event => (
+                <div
+                  key={event.id}
+                  className="p-3 rounded-md border-l-4"
+                  style={{ borderLeftColor: event.color }}
+                >
+                  <div className="font-medium">{event.title}</div>
+                  {event.description && (
+                    <div className="text-sm text-gray-600 mt-1">{event.description}</div>
+                  )}
+                </div>
+              ))}
+
+              {getEventsForDate(new Date(selectedDate)).length === 0 && (
+                <div className="text-gray-500 text-center py-4">
+                  No events scheduled for this date
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* View Mode Selector */}
+        <div className="mt-6 flex justify-center gap-2 mb-4">
+          <button
+            onClick={() => setViewMode('month')}
+            className={`px-4 py-2 rounded-md ${viewMode === 'month' ? 'bg-emerald-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setViewMode('week')}
+            className={`px-4 py-2 rounded-md ${viewMode === 'week' ? 'bg-emerald-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setViewMode('day')}
+            className={`px-4 py-2 rounded-md ${viewMode === 'day' ? 'bg-emerald-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Day
+          </button>
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 flex flex-wrap gap-4 text-sm justify-center">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#9ACD32' }}></div>
+            <span>Meetings</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#65A30D' }}></div>
+            <span>Tasks</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }}></div>
+            <span>Projects</span>
+          </div>
+        </div>
       </Paper>
     </div>
   );
